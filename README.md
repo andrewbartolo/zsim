@@ -44,7 +44,7 @@ software, and that you send us a citation of your work.
 Setup
 -----
 
-External dependencies: `gcc >=4.6, pin, scons, libconfig, libhdf5, libelfg0`
+External dependencies: `gcc >=4.6, pin, scons, libconfig, libhdf5, libelf`
 
 **Natively:** If you use a relatively recent Linux distribution:
 
@@ -68,10 +68,10 @@ External dependencies: `gcc >=4.6, pin, scons, libconfig, libhdf5, libelfg0`
      * libconfig-devel
      * scons
 
-   For Ubuntu:
-     * libelfg0
-     * libconfig
-     * libhdf5
+   For Debian/Ubuntu:
+     * libelf-dev
+     * libconfig++-dev
+     * libhdf5-dev
      * scons
 
 

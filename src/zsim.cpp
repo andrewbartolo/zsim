@@ -28,6 +28,8 @@
 
 #include "zsim.h"
 #include <algorithm>
+// squash the bits/signum.h direct import error in newer environments
+#define _SIGNAL_H 1
 #include <bits/signum.h>
 #include <dlfcn.h>
 #include <execinfo.h>

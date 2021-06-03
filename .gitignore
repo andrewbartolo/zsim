@@ -1,0 +1,5 @@
+# Scons cache database
+.sconsign.dblite
+
+# build directory
+build
