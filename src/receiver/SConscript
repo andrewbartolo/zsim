@@ -1,0 +1,17 @@
+# -*- mode:python -*-
+
+import os
+Import("env")
+
+# save a copy of the old zsim env (currently unused)
+zsimEnv = env
+
+# list of source files
+srcs = ["receiver.cpp"]
+
+# build receiver with our own env, since we don't need ABI compatibility, etc.
+env = Environment(CXXFLAGS = "-Ofast",
+                  LIBS     = "pthread")
+
+# build the binary
+env.Program("receiver", srcs)

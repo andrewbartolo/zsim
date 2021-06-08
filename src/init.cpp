@@ -31,6 +31,7 @@
 #include <string>
 #include <sys/time.h>
 #include <vector>
+#include "bridge.h"
 #include "cache.h"
 #include "cache_arrays.h"
 #include "config.h"
@@ -363,6 +364,9 @@ MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t fre
         // FIXME(dsm): Don't use a separate config file... see DDRMemory
         g_string mcfg = config.get<const char*>("sys.mem.paramFile", "");
         mem = new MemControllerBase(mcfg, lineSize, frequency, domain, name);
+    } else if (type == "Bridge") {
+        // instantiate the Bridge mechanism
+        mem = new Bridge(lineSize, name);
     } else {
         panic("Invalid memory controller type %s", type.c_str());
     }

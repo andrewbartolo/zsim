@@ -176,6 +176,10 @@ def buildSim(cppFlags, dir, type, pgo=None):
 
     env.SConscript("src/SConscript", variant_dir=buildDir, exports= {'env' : env.Clone()})
 
+    # Build the receiver process binary
+    receiverBuildDir = os.path.join(buildDir, "receiver")
+    env.SConscript("src/receiver/SConscript", variant_dir=receiverBuildDir, exports= {'env' : env.Clone()})
+
 ####
 
 AddOption('--buildDir', dest='buildDir', type='string', default="build/", nargs=1, action='store', metavar='DIR', help='Base build directory')
