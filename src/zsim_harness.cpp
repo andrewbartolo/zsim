@@ -38,6 +38,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 #include <vector>
+#include "bridge.h"
 #include "config.h"
 #include "constants.h"
 #include "debug_harness.h"
@@ -327,6 +328,12 @@ int main(int argc, char *argv[]) {
 
     Config conf(configFile);
 
+    // this should be done before any Pin initialization, and also before any
+    // child-exit-catching SIGCHLD stuff (as we manage its lifetime separately)
+    bool bridge_mode =
+            !strcmp(conf.get<const char*>("sys.mem.type", ""), "Bridge");
+    if (bridge_mode) Bridge::launch_receiver(outputDir);
+
     if (atexit(exitHandler)) panic("Could not register exit handler");
 
     signal(SIGSEGV, sigHandler);
@@ -344,7 +351,7 @@ int main(int argc, char *argv[]) {
     if (sigaction(SIGUSR1, &debugSa, nullptr) != 0)
         panic("sigaction() failed");
 
-    waitid(P_ALL, 0, nullptr, WEXITED);
+    //waitid(P_ALL, 0, nullptr, WEXITED);
 
     //Remove all zsim.log.* files (we append to them, and want to avoid outputs from multiple simulations)
     uint32_t removedLogfiles = 0;
@@ -472,6 +479,7 @@ int main(int argc, char *argv[]) {
         exitCode = 1;
     }
     if (zinfo && zinfo->globalActiveProcs) warn("Unclean exit of %d children, termination stats were most likely not dumped", zinfo->globalActiveProcs);
+    if (bridge_mode) Bridge::terminate_receiver();
     exit(exitCode);
 }
 

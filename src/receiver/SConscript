@@ -7,7 +7,7 @@ Import("env")
 zsimEnv = env
 
 # list of source files
-srcs = ["receiver.cpp"]
+srcs = ["Receiver.cpp"]
 
 # build receiver with our own env, since we don't need ABI compatibility, etc.
 env = Environment(CXXFLAGS = "-Ofast",

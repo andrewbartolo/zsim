@@ -13,6 +13,12 @@
  * malloc()). Packets sent by zsim over the bridge are ingested by the receiver
  * simulator process, where the project-specific functionality is simulated.
  *
+ * NOTE: static class variables and functions are called via zsim_harness.cpp,
+ * and Bridge member variables and methods are called via init.cpp. The reason
+ * for the distinction is that zsim_harness.cpp and init.cpp run in separate
+ * processes: the former is the main zsim executable, and the latter is the
+ * Pin-injected process.
+ *
  * In the future, it is intended that the functionality resident in the
  * receiver process can be straightforwardly ported to support a new (non-zsim)
  * frontend. This frontend would:
@@ -28,6 +34,10 @@
 #define BRIDGE_H_
 
 #include <stdint.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/un.h>
+#include <unistd.h>
 
 #include "g_std/g_string.h"
 #include "memory_hierarchy.h"
@@ -35,7 +45,8 @@
 
 class Bridge : public MemObject {
     public:
-        Bridge(uint32_t lineSize, g_string& name);
+        Bridge(const char* const zsim_output_dir, uint32_t lineSize,
+                g_string& name);
         // NOTE: copy + move ctors + assignment operators *should be* deleted
         Bridge(const Bridge& b) = delete;
         Bridge& operator=(const Bridge& b) = delete;
@@ -48,11 +59,27 @@ class Bridge : public MemObject {
         const char* getName() { return name.c_str(); }
         uint32_t getLineSize() { return lineSize; }
 
+        static void launch_receiver(const char* const zsim_output_dir);
+        static void terminate_receiver();
+
+
     private:
+        static void get_receiver_bin_path(char* buf, size_t buf_len);
+        static void get_receiver_sock_path(const char* const zsim_output_dir,
+                char* buf, size_t buf_len);
+        static void establish_socket_pre(const char* const receiver_sock_path);
+        void establish_socket_post(const char* const receiver_sock_path);
+        void send_packet(const void* const buf, const size_t buf_len);
+
         uint32_t lineSize;
         g_string name;
-};
 
+        static pid_t receiver_pid;
+        
+        int receiver_sock_fd;
+        struct sockaddr_un receiver_sock_addr;
+        size_t receiver_sock_addr_len;
+};
 
 
 #endif  // BRIDGE_H_

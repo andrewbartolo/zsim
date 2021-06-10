@@ -324,7 +324,7 @@ DDRMemory* BuildDDRMemory(Config& config, uint32_t lineSize, uint32_t frequency,
     return mem;
 }
 
-MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t frequency, uint32_t domain, g_string& name) {
+MemObject* BuildMemoryController(Config& config, string outputDir, uint32_t lineSize, uint32_t frequency, uint32_t domain, g_string& name) {
     //Type
     string type = config.get<const char*>("sys.mem.type", "Simple");
 
@@ -357,16 +357,16 @@ MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t fre
         uint32_t capacity = config.get<uint32_t>("sys.mem.capacityMB", 16384);
         string dramTechIni = config.get<const char*>("sys.mem.techIni");
         string dramSystemIni = config.get<const char*>("sys.mem.systemIni");
-        string outputDir = config.get<const char*>("sys.mem.outputDir");
+        string memOutputDir = config.get<const char*>("sys.mem.outputDir");
         string traceName = config.get<const char*>("sys.mem.traceName");
-        mem = new DRAMSimMemory(dramTechIni, dramSystemIni, outputDir, traceName, capacity, cpuFreqHz, latency, domain, name);
+        mem = new DRAMSimMemory(dramTechIni, dramSystemIni, memOutputDir, traceName, capacity, cpuFreqHz, latency, domain, name);
     } else if (type == "Detailed") {
         // FIXME(dsm): Don't use a separate config file... see DDRMemory
         g_string mcfg = config.get<const char*>("sys.mem.paramFile", "");
         mem = new MemControllerBase(mcfg, lineSize, frequency, domain, name);
     } else if (type == "Bridge") {
         // instantiate the Bridge mechanism
-        mem = new Bridge(lineSize, name);
+        mem = new Bridge(outputDir.c_str(), lineSize, name);
     } else {
         panic("Invalid memory controller type %s", type.c_str());
     }
@@ -510,7 +510,7 @@ static void InitSystem(Config& config) {
         g_string name(ss.str().c_str());
         //uint32_t domain = nextDomain(); //i*zinfo->numDomains/memControllers;
         uint32_t domain = i*zinfo->numDomains/memControllers;
-        mems[i] = BuildMemoryController(config, zinfo->lineSize, zinfo->freqMHz, domain, name);
+        mems[i] = BuildMemoryController(config, zinfo->outputDir, zinfo->lineSize, zinfo->freqMHz, domain, name);
     }
 
     if (memControllers > 1) {
