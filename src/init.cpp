@@ -365,8 +365,13 @@ MemObject* BuildMemoryController(Config& config, string outputDir, uint32_t line
         g_string mcfg = config.get<const char*>("sys.mem.paramFile", "");
         mem = new MemControllerBase(mcfg, lineSize, frequency, domain, name);
     } else if (type == "Bridge") {
+        // we don't need these here (just in zsim_harness.cpp), but get them
+        // anyway to squash zsim's unused-config-var mechanism
+        config.get<const char*>("sys.mem.tool");
+        config.get<const char*>("sys.mem.toolConfigFile");
+
         // instantiate the Bridge mechanism
-        mem = new Bridge(outputDir.c_str(), lineSize, name);
+        mem = new Bridge(outputDir, lineSize, name);
     } else {
         panic("Invalid memory controller type %s", type.c_str());
     }

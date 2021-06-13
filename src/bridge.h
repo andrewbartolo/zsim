@@ -39,13 +39,15 @@
 #include <sys/un.h>
 #include <unistd.h>
 
+#include <string>
+
 #include "g_std/g_string.h"
 #include "memory_hierarchy.h"
 
 
 class Bridge : public MemObject {
     public:
-        Bridge(const char* const zsim_output_dir, uint32_t lineSize,
+        Bridge(const std::string& zsim_output_dir, uint32_t lineSize,
                 g_string& name);
         // NOTE: copy + move ctors + assignment operators *should be* deleted
         Bridge(const Bridge& b) = delete;
@@ -59,23 +61,25 @@ class Bridge : public MemObject {
         const char* getName() { return name.c_str(); }
         uint32_t getLineSize() { return lineSize; }
 
-        static void launch_receiver(const char* const zsim_output_dir);
+        static void launch_receiver(const std::string zsim_output_dir,
+                const std::string& tool, std::string tool_config_file);
         static void terminate_receiver();
 
 
     private:
-        static void get_receiver_bin_path(char* buf, size_t buf_len);
-        static void get_receiver_sock_path(const char* const zsim_output_dir,
-                char* buf, size_t buf_len);
-        static void establish_socket_pre(const char* const receiver_sock_path);
-        void establish_socket_post(const char* const receiver_sock_path);
+        static std::string get_receiver_bin_path();
+        static std::string get_receiver_sock_path(const std::string&
+                zsim_output_dir);
+        static void establish_socket_pre(const std::string& receiver_sock_path);
+        void establish_socket_post();
         void send_packet(const void* const buf, const size_t buf_len);
+
+        static pid_t receiver_pid;
 
         uint32_t lineSize;
         g_string name;
 
-        static pid_t receiver_pid;
-        
+        std::string receiver_sock_path;
         int receiver_sock_fd;
         struct sockaddr_un receiver_sock_addr;
         size_t receiver_sock_addr_len;

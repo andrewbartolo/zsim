@@ -20,15 +20,11 @@ pid_t Bridge::receiver_pid = 0;
 /*
  * Ctor and dtor.
  */
-Bridge::Bridge(const char* const zsim_output_dir, uint32_t lineSize,
+Bridge::Bridge(const std::string& zsim_output_dir, uint32_t lineSize,
         g_string& name) : lineSize(lineSize), name(name)
 {
-    // find the sock path
-    char receiver_sock_path[4096];
-    get_receiver_sock_path(zsim_output_dir, receiver_sock_path,
-            sizeof(receiver_sock_path));
-
-    establish_socket_post(receiver_sock_path);
+    receiver_sock_path = get_receiver_sock_path(zsim_output_dir);
+    establish_socket_post();
 }
 
 /*
@@ -46,14 +42,40 @@ Bridge::~Bridge()
  * (and not just called by Bridge ctor).
  */
 void
-Bridge::launch_receiver(const char* const zsim_output_dir)
+Bridge::launch_receiver(const std::string zsim_output_dir,
+        const std::string& tool, std::string tool_config_file)
 {
-    char receiver_sock_path[4096];
-    get_receiver_sock_path(zsim_output_dir, receiver_sock_path,
-            sizeof(receiver_sock_path));
+    // first, validate tool type:
 
+    const char* const valid_tool_types[] = {
+        "Counter",
+    };
+    size_t n_valid_tool_types =
+            sizeof(valid_tool_types) / sizeof(valid_tool_types[0]);
+
+    bool found_valid_type = false;
+    for (size_t i = 0; i < n_valid_tool_types; ++i) {
+        std::string tt = valid_tool_types[i];
+        if (tool == tt) {
+            found_valid_type = true;
+            break;
+        }
+    }
+
+    if (!found_valid_type) {
+        panic("invalid bridge tool type \"%s\" specified", tool.c_str());
+    }
+
+    // next, canonicalize tool config file path:
+    if (tool_config_file.length() > 0 and tool_config_file[0] != '/') {
+        tool_config_file = zsim_output_dir + "/" + tool_config_file;
+    }
+
+    // establish the socket
+    std::string receiver_sock_path = get_receiver_sock_path(zsim_output_dir);
     establish_socket_pre(receiver_sock_path);
 
+    // fork and exec
     pid_t pid = fork();
     if (pid < 0) panic("receiver process fork failed");
     if (pid == 0) {
@@ -65,13 +87,21 @@ Bridge::launch_receiver(const char* const zsim_output_dir)
             panic("prctl() set on receiver failed")
         }
 
-        char receiver_bin_path[4096];
-        get_receiver_bin_path(receiver_bin_path, sizeof(receiver_bin_path));
+        std::string receiver_bin_path = get_receiver_bin_path();
 
-        // args to receiver: 1. its own path, and 2. the shared sock path
-        char* execv_argv[] = { receiver_bin_path, receiver_sock_path, nullptr };
+        // args to receiver: 1. its own path, 2. the shared sock path,
+        // 3. the tool type, and 4. the canonicalized tool config file path
+        // ok to cast away constness to fit the execv() signature, as it copies
+        // all args.
+        char* const execv_argv[] = {
+                (char*) receiver_bin_path.c_str(),
+                (char*) receiver_sock_path.c_str(),
+                (char*) tool.c_str(),
+                (char*) tool_config_file.c_str(),
+                nullptr
+        };
 
-        if (execv(receiver_bin_path, execv_argv) == -1) {
+        if (execv(receiver_bin_path.c_str(), execv_argv) == -1) {
             panic("could not execv() receiver process");
         }
     }
@@ -98,18 +128,21 @@ Bridge::terminate_receiver()
  * Reads /proc/self/exe in order to deduce the path to the receiver binary.
  * NOTE: this should only be called from zsim_harness.cpp, not from init.cpp.
  */
-void
-Bridge::get_receiver_bin_path(char* buf, size_t buf_len)
+std::string
+Bridge::get_receiver_bin_path()
 {
-    memset(buf, 0, buf_len);
+    char buf[4096];
+    memset(buf, 0, sizeof(buf));
 
-    if (readlink("/proc/self/exe", buf, buf_len) < 0) {
+    if (readlink("/proc/self/exe", buf, sizeof(buf)) < 0) {
         panic("readlink() to deduce receiver bin path failed");
     }
 
     // trim off the zsim executable and add the path to receiver instead
     dirname(buf);
     strcat(buf, "/receiver/receiver");
+
+    return std::string(buf);
 }
 
 
@@ -118,19 +151,11 @@ Bridge::get_receiver_bin_path(char* buf, size_t buf_len)
  * the sock.
  * NOTE: this function is called by both zsim_harness.cpp and init.cpp.
  */
-void
-Bridge::get_receiver_sock_path(const char* const zsim_output_dir, char* buf,
-        size_t buf_len)
+std::string
+Bridge::get_receiver_sock_path(const std::string& zsim_output_dir)
 {
-    memset(buf, 0, buf_len);
-
-    char suffix[] = "/bridge.sock";
-    if (strlen(zsim_output_dir) + strlen(suffix) >= buf_len) {
-        panic("socket file path too long");
-    }
-
-    strncpy(buf, zsim_output_dir, buf_len);
-    strcat(buf, suffix);
+    std::string suffix = "/bridge.sock";
+    return zsim_output_dir + suffix;
 }
 
 /*
@@ -139,9 +164,9 @@ Bridge::get_receiver_sock_path(const char* const zsim_output_dir, char* buf,
  * re-create it.
  */
 void
-Bridge::establish_socket_pre(const char* const receiver_sock_path)
+Bridge::establish_socket_pre(const std::string& receiver_sock_path)
 {
-    unlink(receiver_sock_path);
+    unlink(receiver_sock_path.c_str());
 }
 
 /*
@@ -152,9 +177,9 @@ Bridge::establish_socket_pre(const char* const receiver_sock_path)
  * and sockaddr.
  */
 void
-Bridge::establish_socket_post(const char* const receiver_sock_path)
+Bridge::establish_socket_post()
 {
-    while (::access(receiver_sock_path, R_OK | W_OK) != 0);
+    while (::access(receiver_sock_path.c_str(), R_OK | W_OK) != 0);
 
     // set up fd
     if ((receiver_sock_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
@@ -164,10 +189,11 @@ Bridge::establish_socket_post(const char* const receiver_sock_path)
     // set up sockaddr
     memset(&receiver_sock_addr, 0, sizeof(receiver_sock_addr));
     receiver_sock_addr.sun_family = AF_UNIX;
-    if (strlen(receiver_sock_path) >= SUN_PATH_MAX) {
+    if (receiver_sock_path.length() >= SUN_PATH_MAX) {
         panic("receiver_sock_path is too long for sockaddr_un");
     }
-    strncpy(receiver_sock_addr.sun_path, receiver_sock_path, SUN_PATH_MAX);
+    strncpy(receiver_sock_addr.sun_path, receiver_sock_path.c_str(),
+            SUN_PATH_MAX - 1);
     receiver_sock_addr_len = SUN_LEN(&receiver_sock_addr);
 }
 

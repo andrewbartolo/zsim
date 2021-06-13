@@ -23,11 +23,15 @@ bool Receiver::finalized = false;
 int
 main(int argc, char* argv[])
 {
-    assert(argc == 2);
+    assert(argc == 4);
     char* const receiver_bin_path = argv[0];
     char* const bridge_sock_path = argv[1];
+    char* const tool = argv[2];
+    char* const tool_config_file = argv[3];
 
-    printf("initiating receiver: %s\n", receiver_bin_path);
+    printf("initiating receiver:\n");
+    printf("\ttool: %s\n", tool);
+    printf("\ttool config: %s\n", tool_config_file);
 
     Receiver::init(bridge_sock_path);
     Receiver::run();
@@ -102,7 +106,7 @@ Receiver::establish_socket()
 void
 Receiver::finish()
 {
-
+    exit(0);
 }
 
 /*

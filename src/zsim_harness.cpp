@@ -331,8 +331,12 @@ int main(int argc, char *argv[]) {
     // this should be done before any Pin initialization, and also before any
     // child-exit-catching SIGCHLD stuff (as we manage its lifetime separately)
     bool bridge_mode =
-            !strcmp(conf.get<const char*>("sys.mem.type", ""), "Bridge");
-    if (bridge_mode) Bridge::launch_receiver(outputDir);
+            std::string(conf.get<const char*>("sys.mem.type", "")) == "Bridge";
+    if (bridge_mode) {
+        std::string bridgeTool = conf.get<const char*>("sys.mem.tool");
+        std::string bridgeToolConfigFile = conf.get<const char*>("sys.mem.toolConfigFile", "");
+        Bridge::launch_receiver(outputDir, bridgeTool, bridgeToolConfigFile);
+    }
 
     if (atexit(exitHandler)) panic("Could not register exit handler");
 
