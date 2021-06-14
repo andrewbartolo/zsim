@@ -89,13 +89,13 @@ Bridge::launch_receiver(const std::string zsim_output_dir,
 
         std::string receiver_bin_path = get_receiver_bin_path();
 
-        // args to receiver: 1. its own path, 2. the shared sock path,
+        // args to receiver: 1. its own path, 2. the output dir (for sock path),
         // 3. the tool type, and 4. the canonicalized tool config file path
         // ok to cast away constness to fit the execv() signature, as it copies
         // all args.
         char* const execv_argv[] = {
                 (char*) receiver_bin_path.c_str(),
-                (char*) receiver_sock_path.c_str(),
+                (char*) zsim_output_dir.c_str(),
                 (char*) tool.c_str(),
                 (char*) tool_config_file.c_str(),
                 nullptr
@@ -149,7 +149,7 @@ Bridge::get_receiver_bin_path()
 /*
  * Given the absolute path to the zsim output dir, returns an absolute path to
  * the sock.
- * NOTE: this function is called by both zsim_harness.cpp and init.cpp.
+ * NOTE: this should only be called from init.cpp, not from zsim_harness.cpp.
  */
 std::string
 Bridge::get_receiver_sock_path(const std::string& zsim_output_dir)
@@ -251,7 +251,13 @@ Bridge::access(MemReq& req)
      * Now that we've patched up the correct zsim state, actually send a packet
      * to the receiver process.
      */
-    RequestPacket rp = { req.lineAddr, req.type, req.cycle, req.srcId };
+    RequestPacket rp = {
+        BRIDGE_PACKET_STATUS_OK,
+        req.lineAddr,
+        req.type,
+        req.cycle,
+        req.srcId
+    };
     send_packet(&rp, sizeof(rp));
 
     /*

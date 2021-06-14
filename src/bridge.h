@@ -29,7 +29,6 @@
  * 3. contain advanced importance sampling functionality, enabling
  *    highly-efficient online simulation, as a novel research direction.
  */
-
 #ifndef BRIDGE_H_
 #define BRIDGE_H_
 
