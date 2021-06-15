@@ -4,6 +4,9 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/un.h>
+#include <unistd.h>
+
+#include <random>
 
 #include "bridge.h"
 #include "bridge_packet.h"
@@ -14,7 +17,11 @@
 /*
  * Static variable definitions.
  */
-pid_t Bridge::receiver_pid = 0;
+pid_t Bridge::receiver_pid_s = 0;
+std::string Bridge::receiver_sock_path_s;
+int Bridge::receiver_sock_fd_s = -1;
+struct sockaddr_un Bridge::receiver_sock_addr_s;
+socklen_t Bridge::receiver_sock_addr_len_s = 0;
 
 
 /*
@@ -24,7 +31,7 @@ Bridge::Bridge(const std::string& zsim_output_dir, uint32_t lineSize,
         g_string& name) : lineSize(lineSize), name(name)
 {
     receiver_sock_path = get_receiver_sock_path(zsim_output_dir);
-    establish_socket_post();
+    establish_socket();
 }
 
 /*
@@ -72,8 +79,8 @@ Bridge::launch_receiver(const std::string zsim_output_dir,
     }
 
     // establish the socket
-    std::string receiver_sock_path = get_receiver_sock_path(zsim_output_dir);
-    establish_socket_pre(receiver_sock_path);
+    receiver_sock_path_s = get_receiver_sock_path(zsim_output_dir);
+    establish_socket_s();
 
     // fork and exec
     pid_t pid = fork();
@@ -108,20 +115,25 @@ Bridge::launch_receiver(const std::string zsim_output_dir,
     if (pid != 0) {
         // parent
 
-        receiver_pid = pid;
-        // NOTE: socket establishment is done in the Bridge instance instead
+        receiver_pid_s = pid;
     }
 }
 
 /*
- * Send a SIGTERM to the receiver process to trigger it to finalize.
+ * Send a status=TERM packet to the receiver process to trigger it to finalize.
  */
 void
 Bridge::terminate_receiver()
 {
-    if (kill(receiver_pid, SIGTERM) != 0) {
-        panic("could not kill(SIGTERM) receiver process");
+    if (receiver_pid_s == 0) {
+        panic("cannot terminate receiver for which we have no record (pid)");
     }
+
+    RequestPacket rp;
+    memset(&rp, 0, sizeof(rp));
+    rp.status = BRIDGE_PACKET_STATUS_TERM;
+    send_packet(receiver_sock_fd_s, &receiver_sock_addr_s,
+            receiver_sock_addr_len_s, &rp);
 }
 
 /*
@@ -149,7 +161,7 @@ Bridge::get_receiver_bin_path()
 /*
  * Given the absolute path to the zsim output dir, returns an absolute path to
  * the sock.
- * NOTE: this should only be called from init.cpp, not from zsim_harness.cpp.
+ * NOTE: this is called from both init.cpp and from zsim_harness.cpp.
  */
 std::string
 Bridge::get_receiver_sock_path(const std::string& zsim_output_dir)
@@ -161,12 +173,15 @@ Bridge::get_receiver_sock_path(const std::string& zsim_output_dir)
 /*
  * The first of the two zsim-side UNIX socket establishment methods.
  * Unlinks the existing socket file (if any), so that the receiver process can
- * re-create it.
+ * re-create it. Then, opens the static socket fd and sets up static sockaddr.
  */
 void
-Bridge::establish_socket_pre(const std::string& receiver_sock_path)
+Bridge::establish_socket_s()
 {
-    unlink(receiver_sock_path.c_str());
+    unlink(receiver_sock_path_s.c_str());
+
+    establish_socket_fd_addr_lowlevel(receiver_sock_path_s, receiver_sock_fd_s,
+            receiver_sock_addr_s, receiver_sock_addr_len_s);
 }
 
 /*
@@ -177,42 +192,123 @@ Bridge::establish_socket_pre(const std::string& receiver_sock_path)
  * and sockaddr.
  */
 void
-Bridge::establish_socket_post()
+Bridge::establish_socket()
 {
     while (::access(receiver_sock_path.c_str(), R_OK | W_OK) != 0);
 
-    // set up fd
-    if ((receiver_sock_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
-        panic("could not create bridge socket fd");
-    }
-
-    // set up sockaddr
-    memset(&receiver_sock_addr, 0, sizeof(receiver_sock_addr));
-    receiver_sock_addr.sun_family = AF_UNIX;
-    if (receiver_sock_path.length() >= SUN_PATH_MAX) {
-        panic("receiver_sock_path is too long for sockaddr_un");
-    }
-    strncpy(receiver_sock_addr.sun_path, receiver_sock_path.c_str(),
-            SUN_PATH_MAX - 1);
-    receiver_sock_addr_len = SUN_LEN(&receiver_sock_addr);
+    establish_socket_fd_addr_lowlevel(receiver_sock_path, receiver_sock_fd,
+            receiver_sock_addr, receiver_sock_addr_len);
 }
 
 /*
- * Sends a packet to the receiver process via the pre-established socket.
+ * This needs to be done separately for the static and non-static (Bridge
+ * instance) invocations, since they run in separate processes that don't share
+ * history. So, we make it a helper fn.
  */
 void
-Bridge::send_packet(const void* const buf, const size_t buf_len)
+Bridge::establish_socket_fd_addr_lowlevel(const std::string& path, int& fd,
+        struct sockaddr_un& addr, socklen_t& addr_len)
 {
-    if (receiver_sock_fd == -1) {
+    // set up fd
+    if ((fd = socket(AF_UNIX, SOCK_DGRAM, 0)) < 0) {
+        panic("could not create socket fd");
+    }
+
+    // set up destination sockaddr
+    memset(&addr, 0, sizeof(addr));
+    addr.sun_family = AF_UNIX;
+    if (path.length() >= SUN_PATH_MAX) {
+        panic("path is too long for sockaddr_un");
+    }
+    strncpy(addr.sun_path, path.c_str(), SUN_PATH_MAX - 1);
+    addr_len = get_sockaddr_len(&addr);
+
+    // bind the socket to an anonymous name so we can get responses on it
+    struct sockaddr_un sa_bind;
+    memset(&sa_bind, 0, sizeof(sa_bind));
+    sa_bind.sun_family = AF_UNIX;
+
+    // get an abstract (anonymous) bind point by using a UID
+    constexpr size_t n_uid_chars = 8;
+    std::string uid = gen_uid(n_uid_chars);
+
+    sa_bind.sun_path[0] = 0x0;
+    strncpy(sa_bind.sun_path + 1, uid.c_str(), n_uid_chars + 1);
+
+    // takes into account the abstract name format
+    socklen_t sa_bind_len = get_sockaddr_len(&sa_bind);
+
+    if (bind(fd, (struct sockaddr*) &sa_bind, sa_bind_len) != 0) {
+        panic("could not bind client socket for return path");
+    }
+}
+
+/*
+ * Handles the oddity of abstract socket name lengths.
+ */
+socklen_t
+Bridge::get_sockaddr_len(struct sockaddr_un* addr)
+{
+    socklen_t len = SUN_LEN(addr);
+    if (addr->sun_path[0] == 0x0) len += strlen(addr->sun_path + 1);
+    return len;
+}
+
+/*
+ * Sends a RequestPacket to the receiver process via the specified socket.
+ */
+inline void
+Bridge::send_packet(const int fd, const struct sockaddr_un* const dest_addr,
+        socklen_t dest_addr_len, RequestPacket* req)
+{
+    if (fd == -1) {
         panic("Bridge::send_packet() before socket fd initialized");
     }
 
-    ssize_t ret = sendto(receiver_sock_fd, buf, buf_len, 0,
-            (struct sockaddr*) &receiver_sock_addr, receiver_sock_addr_len);
+    ssize_t ret = sendto(fd, req, sizeof(*req), 0, (struct sockaddr*) dest_addr,
+            dest_addr_len);
 
-    if (ret != (ssize_t) buf_len) {
+    if (ret != (ssize_t) sizeof(*req)) {
         panic("bridge packet send failed");
     }
+}
+
+/*
+ * Receives a ResponsePacket from the receiver. Blocks until it sees a packet.
+ */
+inline void
+Bridge::receive_packet(const int fd, struct sockaddr_un* const src_addr,
+        socklen_t* src_addr_len, ResponsePacket* res)
+{
+    // recvfrom() requires *src_addr_len to contain the full size of src_addr as
+    // a precondition, so set it.
+    if (src_addr_len != nullptr) *src_addr_len = sizeof(*src_addr);
+
+    // before calling recvfrom(), we also need to set sun_family
+    if (src_addr != nullptr) src_addr->sun_family = AF_UNIX;
+
+    ssize_t ret = recvfrom(fd, res, sizeof(*res), 0, (struct sockaddr*)
+            src_addr, src_addr_len);
+    assert(ret == (ssize_t) sizeof(*res));
+}
+
+std::string
+Bridge::gen_uid(const size_t len)
+{
+    static const char UID_CHARS[] = "abcdefghijklmnopqrstuvwxyz0123456789";
+
+    char buf[len + 1];
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> dis(0, strlen(UID_CHARS) - 1);
+
+    for (size_t i = 0; i < len; ++i) {
+        buf[i] = UID_CHARS[dis(gen)];
+    }
+    buf[len] = 0x0;
+
+    return std::string(buf);
 }
 
 
@@ -251,18 +347,21 @@ Bridge::access(MemReq& req)
      * Now that we've patched up the correct zsim state, actually send a packet
      * to the receiver process.
      */
-    RequestPacket rp = {
+    RequestPacket reqp = {
         BRIDGE_PACKET_STATUS_OK,
         req.lineAddr,
         req.type,
         req.cycle,
         req.srcId
     };
-    send_packet(&rp, sizeof(rp));
+    send_packet(receiver_sock_fd, &receiver_sock_addr, receiver_sock_addr_len,
+            &reqp);
 
     /*
      * And wait for the response.
      */
+    ResponsePacket resp;
+    receive_packet(receiver_sock_fd, nullptr, nullptr, &resp);
 
-    return req.cycle + 0;
+    return req.cycle + resp.cycle;
 }

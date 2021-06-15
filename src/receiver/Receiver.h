@@ -13,6 +13,7 @@
 
 #include <string>
 
+#include "../bridge_packet.h"
 #include "tools/Tool.h"
 
 
@@ -25,17 +26,20 @@ class Receiver {
 
     private:
         static void establish_signal_handler();
-        static void establish_socket();
-        static void finish();
         static void signal_handler(int signum, siginfo_t* info, void* ucxt);
+        static void establish_socket();
+        static socklen_t get_sockaddr_len(struct sockaddr_un* addr);
+        static inline void send_packet(const int fd, const struct sockaddr_un*
+                const dest_addr, socklen_t dest_addr_len, ResponsePacket* res);
+        static inline void receive_packet(const int fd, struct sockaddr_un*
+                const src_addr, socklen_t* src_addr_len, RequestPacket* req);
+        static void finish();
 
         static std::string zsim_output_dir;
         static std::string bridge_sock_path;
         static int bridge_sock_fd;
         static struct sockaddr_un bridge_sock_addr;
-        static size_t bridge_sock_addr_len;
-        static bool finalized;
+        static socklen_t bridge_sock_addr_len;
 
         static Tool* tool;
 };
-

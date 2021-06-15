@@ -40,6 +40,7 @@
 
 #include <string>
 
+#include "bridge_packet.h"
 #include "g_std/g_string.h"
 #include "memory_hierarchy.h"
 
@@ -69,11 +70,23 @@ class Bridge : public MemObject {
         static std::string get_receiver_bin_path();
         static std::string get_receiver_sock_path(const std::string&
                 zsim_output_dir);
-        static void establish_socket_pre(const std::string& receiver_sock_path);
-        void establish_socket_post();
-        void send_packet(const void* const buf, const size_t buf_len);
+        static void establish_socket_s();
+        void establish_socket();
+        static void establish_socket_fd_addr_lowlevel(const std::string& path,
+                int& fd, struct sockaddr_un& addr, socklen_t& addr_len);
+        static socklen_t get_sockaddr_len(struct sockaddr_un* addr);
+        static inline void send_packet(const int fd, const struct sockaddr_un*
+                const dest_addr, socklen_t dest_addr_len, RequestPacket* req);
+        static inline void receive_packet(const int fd, struct sockaddr_un*
+                const src_addr, socklen_t* src_addr_len, ResponsePacket* res);
+        static std::string gen_uid(const size_t len);
 
-        static pid_t receiver_pid;
+        // static variables used by zsim_harness.cpp
+        static pid_t receiver_pid_s;
+        static std::string receiver_sock_path_s;
+        static int receiver_sock_fd_s;
+        static struct sockaddr_un receiver_sock_addr_s;
+        static socklen_t receiver_sock_addr_len_s;
 
         uint32_t lineSize;
         g_string name;
@@ -81,7 +94,7 @@ class Bridge : public MemObject {
         std::string receiver_sock_path;
         int receiver_sock_fd;
         struct sockaddr_un receiver_sock_addr;
-        size_t receiver_sock_addr_len;
+        socklen_t receiver_sock_addr_len;
 };
 
 
