@@ -45,10 +45,9 @@
 #include "memory_hierarchy.h"
 
 
-class Bridge : public MemObject {
+class Bridge {
     public:
-        Bridge(const std::string& zsim_output_dir, uint32_t lineSize,
-                g_string& name);
+        Bridge(const std::string& zsim_output_dir, uint32_t line_size);
         // NOTE: copy + move ctors + assignment operators *should be* deleted
         Bridge(const Bridge& b) = delete;
         Bridge& operator=(const Bridge& b) = delete;
@@ -56,10 +55,7 @@ class Bridge : public MemObject {
         Bridge& operator=(Bridge&& b) = delete;
         ~Bridge();
 
-        uint64_t access(MemReq& req);
-
-        const char* getName() { return name.c_str(); }
-        uint32_t getLineSize() { return lineSize; }
+        void access(MemReq& req, uint64_t* latency, bool* do_forward);
 
         static void launch_receiver(const std::string zsim_output_dir,
                 const std::string& tool, std::string tool_config_file);
@@ -88,8 +84,7 @@ class Bridge : public MemObject {
         static struct sockaddr_un receiver_sock_addr_s;
         static socklen_t receiver_sock_addr_len_s;
 
-        uint32_t lineSize;
-        g_string name;
+        uint32_t line_size;
 
         std::string receiver_sock_path;
         int receiver_sock_fd;

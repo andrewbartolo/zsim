@@ -27,8 +27,8 @@ socklen_t Bridge::receiver_sock_addr_len_s = 0;
 /*
  * Ctor and dtor.
  */
-Bridge::Bridge(const std::string& zsim_output_dir, uint32_t lineSize,
-        g_string& name) : lineSize(lineSize), name(name)
+Bridge::Bridge(const std::string& zsim_output_dir, uint32_t line_size) :
+        line_size(line_size)
 {
     receiver_sock_path = get_receiver_sock_path(zsim_output_dir);
     establish_socket();
@@ -316,36 +316,15 @@ Bridge::gen_uid(const size_t len)
  * If this were a traditional zsim function, it would return a uint64_t
  * indicating the current cycle upon completion of the access. However, the
  * receiver simulator process keeps track of all its own stats separately
- * (though it does use the zsim start cycle as input). We keep the signatures
- * the same and just return the input cycle.
+ * (though it does use the zsim start cycle as input).
+ * Instead, we return a uint64_t latency value, and also a bool indicating
+ * whether/not we should forward the request to the memory.
  */
-uint64_t
-Bridge::access(MemReq& req)
+void
+Bridge::access(MemReq& req, uint64_t* latency, bool* do_forward)
 {
     /*
-     * NOTE: still need to dereference + set *req.state, because other places in
-     * the zsim codebase expect it.
-     */
-    switch (req.type) {
-        case PUTX:
-            //Dirty wback
-            //Note no break
-        case PUTS:
-            //Not a real access -- memory must treat clean wbacks as if they never happened.
-            *req.state = I;
-            break;
-        case GETS:
-            *req.state = req.is(MemReq::NOEXCL)? S : E;
-            break;
-        case GETX:
-            *req.state = M;
-            break;
-        default: panic("!?");
-    }
-
-    /*
-     * Now that we've patched up the correct zsim state, actually send a packet
-     * to the receiver process.
+     * Send a packet to the reciever process.
      */
     RequestPacket reqp = {
         BRIDGE_PACKET_STATUS_OK,
@@ -363,5 +342,7 @@ Bridge::access(MemReq& req)
     ResponsePacket resp;
     receive_packet(receiver_sock_fd, nullptr, nullptr, &resp);
 
-    return req.cycle + resp.cycle;
+    // return values
+    *latency = resp.latency;
+    *do_forward = resp.do_forward;
 }

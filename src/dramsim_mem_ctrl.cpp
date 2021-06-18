@@ -63,7 +63,7 @@ class DRAMSimAccEvent : public TimingEvent {
 
 
 DRAMSimMemory::DRAMSimMemory(string& dramTechIni, string& dramSystemIni, string& outputDir, string& traceName,
-        uint32_t capacityMB, uint64_t cpuFreqHz, uint32_t _minLatency, uint32_t _domain, const g_string& _name)
+        uint32_t capacityMB, uint64_t cpuFreqHz, uint32_t _minLatency, uint32_t _domain, const g_string& _name, Bridge* _bridge)
 {
     curCycle = 0;
     minLatency = _minLatency;
@@ -80,6 +80,7 @@ DRAMSimMemory::DRAMSimMemory(string& dramTechIni, string& dramSystemIni, string&
     tickEv->queue(0);  // start the sim at time 0
 
     name = _name;
+    bridge = _bridge;
 }
 
 void DRAMSimMemory::initStats(AggregateStat* parentStat) {
@@ -108,7 +109,16 @@ uint64_t DRAMSimMemory::access(MemReq& req) {
         default: panic("!?");
     }
 
-    uint64_t respCycle = req.cycle + minLatency;
+    uint64_t brLat = 0;
+    if (bridge != nullptr) {
+        bool doForward;
+
+        bridge->access(req, &brLat, &doForward);
+
+        if (!doForward) return req.cycle + brLat;
+    }
+
+    uint64_t respCycle = req.cycle + brLat + minLatency;
     assert(respCycle > req.cycle);
 
     if ((req.type != PUTS /*discard clean writebacks*/) && zinfo->eventRecorders[req.srcId]) {
@@ -166,7 +176,7 @@ void DRAMSimMemory::DRAM_write_return_cb(uint32_t id, uint64_t addr, uint64_t me
 using std::string;
 
 DRAMSimMemory::DRAMSimMemory(string& dramTechIni, string& dramSystemIni, string& outputDir, string& traceName,
-        uint32_t capacityMB, uint64_t cpuFreqHz, uint32_t _minLatency, uint32_t _domain, const g_string& _name)
+        uint32_t capacityMB, uint64_t cpuFreqHz, uint32_t _minLatency, uint32_t _domain, const g_string& _name, Bridge* bridge)
 {
     panic("Cannot use DRAMSimMemory, zsim was not compiled with DRAMSim");
 }

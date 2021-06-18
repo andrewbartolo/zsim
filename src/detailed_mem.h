@@ -26,6 +26,7 @@
 #ifndef DETAILED_MEM_H_
 #define DETAILED_MEM_H_
 
+#include "bridge.h"
 #include "detailed_mem_params.h"
 #include "g_std/g_string.h"
 #include "memory_hierarchy.h"
@@ -242,6 +243,7 @@ class MemControllerBase : public MemObject {
         g_string name;
         uint32_t domain;
         uint32_t cacheLineSize;
+        Bridge* bridge;
 
         MemParam* mParam;
         g_vector <MemChannelBase*> chnls;
@@ -317,7 +319,7 @@ class MemControllerBase : public MemObject {
 
 
     public:
-        MemControllerBase(g_string _memCfg, uint32_t _cacheLineSize, uint32_t _sysFreqMHz, uint32_t _domain, g_string& _name);
+        MemControllerBase(g_string _memCfg, uint32_t _cacheLineSize, uint32_t _sysFreqMHz, uint32_t _domain, g_string& _name, Bridge* bridge);
         virtual ~MemControllerBase();
 
         const char* getName() { return name.c_str(); }

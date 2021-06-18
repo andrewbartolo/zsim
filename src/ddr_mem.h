@@ -232,6 +232,8 @@ class DDRMemory : public MemObject {
 
         const g_string name;
 
+        Bridge* bridge;
+
         // R/W stats
         PAD();
         Counter profReads, profWrites;
@@ -261,7 +263,7 @@ class DDRMemory : public MemObject {
         DDRMemory(uint32_t _lineSize, uint32_t _colSize, uint32_t _ranksPerChannel, uint32_t _banksPerRank,
             uint32_t _sysFreqMHz, const char* tech, const char* addrMapping, uint32_t _controllerSysLatency,
             uint32_t _queueDepth, uint32_t _rowHitLimit, bool _deferredWrites, bool _closedPage,
-            uint32_t _domain, g_string& _name);
+            uint32_t _domain, g_string& _name, Bridge* bridge);
 
         void initStats(AggregateStat* parentStat);
         const char* getName() {return name.c_str();}

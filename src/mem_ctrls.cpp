@@ -44,7 +44,23 @@ uint64_t SimpleMemory::access(MemReq& req) {
         default: panic("!?");
     }
 
-    uint64_t respCycle = req.cycle + latency;
+    uint64_t respCycle;
+
+    // if using Bridge, send to Bridge Tool to see how much simulated latency it incurs
+    if (bridge != nullptr) {
+        uint64_t brLat;
+        bool doForward;
+
+        bridge->access(req, &brLat, &doForward);
+        respCycle = req.cycle + brLat;
+
+        // simulate the effect of forwarding on to mem
+        if (doForward) respCycle += latency;
+    }
+    else {
+        respCycle = req.cycle + latency;
+    }
+
     assert(respCycle > req.cycle);
 /*
     if ((req.type == GETS || req.type == GETX) && eventRecorders[req.srcId]) {
@@ -54,14 +70,15 @@ uint64_t SimpleMemory::access(MemReq& req) {
         eventRecorders[req.srcId]->pushRecord(tr);
     }
 */
+
     return respCycle;
 }
 
 
 
 
-MD1Memory::MD1Memory(uint32_t requestSize, uint32_t megacyclesPerSecond, uint32_t megabytesPerSecond, uint32_t _zeroLoadLatency, g_string& _name)
-    : zeroLoadLatency(_zeroLoadLatency), name(_name)
+MD1Memory::MD1Memory(uint32_t requestSize, uint32_t megacyclesPerSecond, uint32_t megabytesPerSecond, uint32_t _zeroLoadLatency, g_string& _name, Bridge* _bridge)
+    : zeroLoadLatency(_zeroLoadLatency), name(_name), bridge(_bridge)
 {
     lastPhase = 0;
 
@@ -142,6 +159,25 @@ uint64_t MD1Memory::access(MemReq& req) {
 
         default: panic("!?");
     }
-    return req.cycle + ((req.type == PUTS)? 0 /*PUTS is not a real access*/ : curLatency);
+
+
+    uint64_t respCycle;
+
+    if (bridge != nullptr) {
+        uint64_t brLat;
+        bool doForward;
+        bridge->access(req, &brLat, &doForward);
+
+        respCycle = req.cycle + brLat;
+
+        if (doForward) {
+            respCycle += ((req.type == PUTS)? 0 /*PUTS is not a real access*/ : curLatency);
+        }
+    }
+    else {
+        respCycle = req.cycle + ((req.type == PUTS)? 0 /*PUTS is not a real access*/ : curLatency);
+    }
+
+    return respCycle;
 }
 

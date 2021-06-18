@@ -5,7 +5,7 @@
  * Ctor.
  */
 Tool::Tool(const std::string& zsim_output_dir, const std::string& tool_name,
-        const std::string& tool_config_path) : zsim_output_dir(zsim_output_dir), 
+        const std::string& tool_config_path) : zsim_output_dir(zsim_output_dir),
         tool_name(tool_name), tool_config_path(tool_config_path)
 {
     stats_text_file_path = zsim_output_dir + "/" + tool_name + "-stats.txt";

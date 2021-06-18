@@ -330,11 +330,10 @@ int main(int argc, char *argv[]) {
 
     // this should be done before any Pin initialization, and also before any
     // child-exit-catching SIGCHLD stuff (as we manage its lifetime separately)
-    bool bridge_mode =
-            std::string(conf.get<const char*>("sys.mem.type", "")) == "Bridge";
+    bool bridge_mode = conf.exists("sys.bridge");
     if (bridge_mode) {
-        std::string bridgeTool = conf.get<const char*>("sys.mem.tool");
-        std::string bridgeToolConfigFile = conf.get<const char*>("sys.mem.toolConfigFile", "");
+        std::string bridgeTool = conf.get<const char*>("sys.bridge.type");
+        std::string bridgeToolConfigFile = conf.get<const char*>("sys.bridge.config", "");
         Bridge::launch_receiver(outputDir, bridgeTool, bridgeToolConfigFile);
     }
 

@@ -28,6 +28,7 @@
 
 #include <map>
 #include <string>
+#include "bridge.h"
 #include "g_std/g_string.h"
 #include "memory_hierarchy.h"
 #include "pad.h"
@@ -44,6 +45,7 @@ class DRAMSimMemory : public MemObject { //one DRAMSim controller
         g_string name;
         uint32_t minLatency;
         uint32_t domain;
+        Bridge* bridge;
 
         DRAMSim::MultiChannelMemorySystem* dramCore;
 
@@ -61,7 +63,7 @@ class DRAMSimMemory : public MemObject { //one DRAMSim controller
 
     public:
         DRAMSimMemory(std::string& dramTechIni, std::string& dramSystemIni, std::string& outputDir, std::string& traceName, uint32_t capacityMB,
-                uint64_t cpuFreqHz,  uint32_t _minLatency, uint32_t _domain, const g_string& _name);
+                uint64_t cpuFreqHz,  uint32_t _minLatency, uint32_t _domain, const g_string& _name, Bridge* _bridge);
 
         const char* getName() {return name.c_str();}
 

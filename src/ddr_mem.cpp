@@ -23,6 +23,7 @@
  * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "bridge.h"
 #include "ddr_mem.h"
 #include <algorithm>
 #include <string>
@@ -153,10 +154,10 @@ class SchedEvent : public TimingEvent, public GlobAlloc {
 DDRMemory::DDRMemory(uint32_t _lineSize, uint32_t _colSize, uint32_t _ranksPerChannel, uint32_t _banksPerRank,
         uint32_t _sysFreqMHz, const char* tech, const char* addrMapping, uint32_t _controllerSysLatency,
         uint32_t _queueDepth, uint32_t _rowHitLimit, bool _deferredWrites, bool _closedPage,
-        uint32_t _domain, g_string& _name)
+        uint32_t _domain, g_string& _name, Bridge* _bridge)
     : lineSize(_lineSize), ranksPerChannel(_ranksPerChannel), banksPerRank(_banksPerRank),
       controllerSysLatency(_controllerSysLatency), queueDepth(_queueDepth), rowHitLimit(_rowHitLimit),
-      deferredWrites(_deferredWrites), closedPage(_closedPage), domain(_domain), name(_name)
+      deferredWrites(_deferredWrites), closedPage(_closedPage), domain(_domain), name(_name), bridge(_bridge)
 {
     sysFreqKHz = 1000 * _sysFreqMHz;
     initTech(tech);  // sets all tXX and memFreqKHz
@@ -256,11 +257,21 @@ uint64_t DDRMemory::access(MemReq& req) {
         default: panic("!?");
     }
 
+    uint64_t brLat = 0;
+    if (bridge != nullptr) {
+        bool doForward;
+
+        bridge->access(req, &brLat, &doForward);
+
+        if (!doForward) return req.cycle + brLat;
+    }
+
+
     if (req.type == PUTS) {
-        return req.cycle; //must return an absolute value, 0 latency
+        return req.cycle + brLat; //must return an absolute value, 0 latency
     } else {
         bool isWrite = (req.type == PUTX);
-        uint64_t respCycle = req.cycle + (isWrite? minWrLatency : minRdLatency);
+        uint64_t respCycle = req.cycle + brLat + (isWrite? minWrLatency : minRdLatency);
         if (zinfo->eventRecorders[req.srcId]) {
             DDRMemoryAccEvent* memEv = new (zinfo->eventRecorders[req.srcId]) DDRMemoryAccEvent(this,
                     isWrite, req.lineAddr, domain, preDelay, isWrite? postDelayWr : postDelayRd);

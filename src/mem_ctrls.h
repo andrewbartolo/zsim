@@ -26,6 +26,7 @@
 #ifndef MEM_CTRLS_H_
 #define MEM_CTRLS_H_
 
+#include "bridge.h"
 #include "g_std/g_string.h"
 #include "memory_hierarchy.h"
 #include "pad.h"
@@ -36,13 +37,14 @@ class SimpleMemory : public MemObject {
     private:
         g_string name;
         uint32_t latency;
+        Bridge* bridge;
 
     public:
         uint64_t access(MemReq& req);
 
         const char* getName() {return name.c_str();}
 
-        SimpleMemory(uint32_t _latency, g_string& _name) : name(_name), latency(_latency) {}
+        SimpleMemory(uint32_t _latency, g_string& _name, Bridge* _bridge) : name(_name), latency(_latency), bridge(_bridge) {}
 };
 
 
@@ -70,10 +72,11 @@ class MD1Memory : public MemObject {
 
         g_string name; //barely used
         lock_t updateLock;
+        Bridge* bridge;
         PAD();
 
     public:
-        MD1Memory(uint32_t lineSize, uint32_t megacyclesPerSecond, uint32_t megabytesPerSecond, uint32_t _zeroLoadLatency, g_string& _name);
+        MD1Memory(uint32_t lineSize, uint32_t megacyclesPerSecond, uint32_t megabytesPerSecond, uint32_t _zeroLoadLatency, g_string& _name, Bridge* _bridge);
 
         void initStats(AggregateStat* parentStat) {
             AggregateStat* memStats = new AggregateStat();

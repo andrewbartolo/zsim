@@ -300,7 +300,7 @@ BaseCache* BuildCacheBank(Config& config, const string& prefix, g_string& name, 
 }
 
 // NOTE: frequency is SYSTEM frequency; mem freq specified in tech
-DDRMemory* BuildDDRMemory(Config& config, uint32_t lineSize, uint32_t frequency, uint32_t domain, g_string name, const string& prefix) {
+DDRMemory* BuildDDRMemory(Config& config, uint32_t lineSize, uint32_t frequency, uint32_t domain, g_string name, const string& prefix, Bridge* bridge) {
     uint32_t ranksPerChannel = config.get<uint32_t>(prefix + "ranksPerChannel", 4);
     uint32_t banksPerRank = config.get<uint32_t>(prefix + "banksPerRank", 8);  // DDR3 std is 8
     uint32_t pageSize = config.get<uint32_t>(prefix + "pageSize", 8*1024);  // 1Kb cols, x4 devices
@@ -320,7 +320,7 @@ DDRMemory* BuildDDRMemory(Config& config, uint32_t lineSize, uint32_t frequency,
     uint32_t controllerLatency = config.get<uint32_t>(prefix + "controllerLatency", 10);  // in system cycles
 
     auto mem = new DDRMemory(zinfo->lineSize, pageSize, ranksPerChannel, banksPerRank, frequency, tech,
-            addrMapping, controllerLatency, queueDepth, maxRowHits, deferWrites, closedPage, domain, name);
+            addrMapping, controllerLatency, queueDepth, maxRowHits, deferWrites, closedPage, domain, name, bridge);
     return mem;
 }
 
@@ -331,9 +331,21 @@ MemObject* BuildMemoryController(Config& config, string outputDir, uint32_t line
     //Latency
     uint32_t latency = (type == "DDR")? -1 : config.get<uint32_t>("sys.mem.latency", 100);
 
+    Bridge* bridge = nullptr;
+    if (config.exists("sys.bridge")) {
+        // we don't need these here (just in zsim_harness.cpp), but get them
+        // anyway to squash zsim's unused-config-var mechanism
+        config.get<const char*>("sys.bridge.type");
+        config.get<const char*>("sys.bridge.config");
+
+        // instantiate the Bridge mechanism
+        bridge = new Bridge(outputDir, lineSize);
+    }
+    bridge = bridge;
+
     MemObject* mem = nullptr;
     if (type == "Simple") {
-        mem = new SimpleMemory(latency, name);
+        mem = new SimpleMemory(latency, name, bridge);
     } else if (type == "MD1") {
         // The following params are for MD1 only
         // NOTE: Frequency (in MHz) -- note this is a sys parameter (not sys.mem). There is an implicit assumption of having
@@ -342,16 +354,16 @@ MemObject* BuildMemoryController(Config& config, string outputDir, uint32_t line
         // Peak bandwidth (in MB/s)
         uint32_t bandwidth = config.get<uint32_t>("sys.mem.bandwidth", 6400);
 
-        mem = new MD1Memory(lineSize, frequency, bandwidth, latency, name);
+        mem = new MD1Memory(lineSize, frequency, bandwidth, latency, name, bridge);
     } else if (type == "WeaveMD1") {
         uint32_t bandwidth = config.get<uint32_t>("sys.mem.bandwidth", 6400);
         uint32_t boundLatency = config.get<uint32_t>("sys.mem.boundLatency", latency);
-        mem = new WeaveMD1Memory(lineSize, frequency, bandwidth, latency, boundLatency, domain, name);
+        mem = new WeaveMD1Memory(lineSize, frequency, bandwidth, latency, boundLatency, domain, name, bridge);
     } else if (type == "WeaveSimple") {
         uint32_t boundLatency = config.get<uint32_t>("sys.mem.boundLatency", 100);
-        mem = new WeaveSimpleMemory(latency, boundLatency, domain, name);
+        mem = new WeaveSimpleMemory(latency, boundLatency, domain, name, bridge);
     } else if (type == "DDR") {
-        mem = BuildDDRMemory(config, lineSize, frequency, domain, name, "sys.mem.");
+        mem = BuildDDRMemory(config, lineSize, frequency, domain, name, "sys.mem.", bridge);
     } else if (type == "DRAMSim") {
         uint64_t cpuFreqHz = 1000000 * frequency;
         uint32_t capacity = config.get<uint32_t>("sys.mem.capacityMB", 16384);
@@ -359,19 +371,11 @@ MemObject* BuildMemoryController(Config& config, string outputDir, uint32_t line
         string dramSystemIni = config.get<const char*>("sys.mem.systemIni");
         string memOutputDir = config.get<const char*>("sys.mem.outputDir");
         string traceName = config.get<const char*>("sys.mem.traceName");
-        mem = new DRAMSimMemory(dramTechIni, dramSystemIni, memOutputDir, traceName, capacity, cpuFreqHz, latency, domain, name);
+        mem = new DRAMSimMemory(dramTechIni, dramSystemIni, memOutputDir, traceName, capacity, cpuFreqHz, latency, domain, name, bridge);
     } else if (type == "Detailed") {
         // FIXME(dsm): Don't use a separate config file... see DDRMemory
         g_string mcfg = config.get<const char*>("sys.mem.paramFile", "");
-        mem = new MemControllerBase(mcfg, lineSize, frequency, domain, name);
-    } else if (type == "Bridge") {
-        // we don't need these here (just in zsim_harness.cpp), but get them
-        // anyway to squash zsim's unused-config-var mechanism
-        config.get<const char*>("sys.mem.tool");
-        config.get<const char*>("sys.mem.toolConfigFile");
-
-        // instantiate the Bridge mechanism
-        mem = new Bridge(outputDir, lineSize, name);
+        mem = new MemControllerBase(mcfg, lineSize, frequency, domain, name, bridge);
     } else {
         panic("Invalid memory controller type %s", type.c_str());
     }

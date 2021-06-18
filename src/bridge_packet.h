@@ -26,8 +26,10 @@ typedef struct {
 } RequestPacket;
 
 typedef struct {
-    // cumulative cycles *after* the event has been simulated
-    uint64_t cycle;
+    // extra latency in cycles incurred by just the simulated bridge operation
+    uint64_t latency;
+    // whether/not to forward the request on to memory
+    bool do_forward;
 } ResponsePacket;
 
 #endif

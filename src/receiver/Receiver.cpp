@@ -87,7 +87,7 @@ Receiver::run()
         else tool->access(req, res);
 
         // reply to the same address we received the Request from
-        res = { 0 };
+        res = { 0, true };
         send_packet(bridge_sock_fd, &req_addr, req_addr_len, &res);
 
         ++n_pkts;

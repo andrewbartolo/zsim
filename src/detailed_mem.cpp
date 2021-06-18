@@ -960,9 +960,10 @@ bool MemSchedulerDefault::FindBestRequest(g_vector<MemSchedQueueElem> *queue, ui
 
 
 // Main Memory Class
-MemControllerBase::MemControllerBase(g_string _memCfg, uint32_t _cacheLineSize, uint32_t _sysFreqMHz, uint32_t _domain, g_string& _name) {
+MemControllerBase::MemControllerBase(g_string _memCfg, uint32_t _cacheLineSize, uint32_t _sysFreqMHz, uint32_t _domain, g_string& _name, Bridge* _bridge) {
     name = _name;
     domain = _domain;
+    bridge = _bridge;
     info("%s: domain %d", name.c_str(), domain);
 
     lastPhaseCycle = 0;
@@ -1115,11 +1116,22 @@ uint64_t MemControllerBase::access(MemReq& req) {
         default: panic("!?");
     }
 
+
+    uint64_t brLat = 0;
+    if (bridge != nullptr) {
+        bool doForward;
+
+        bridge->access(req, &brLat, &doForward);
+
+        if (!doForward) return req.cycle + brLat;
+    }
+
+
     if (req.type == PUTS)
-        return req.cycle;
+        return req.cycle + brLat;
 
     MemAccessType accessType = (req.type == PUTS || req.type == PUTX) ? WRITE : READ;
-    uint64_t respCycle = req.cycle + minLatency[accessType];
+    uint64_t respCycle = req.cycle + brLat + minLatency[accessType];
     assert(respCycle >= req.cycle);
 
     if ((req.type != PUTS) && zinfo->eventRecorders[req.srcId]) {

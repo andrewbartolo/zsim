@@ -26,6 +26,7 @@
 #ifndef WEAVE_MD1_MEM_H_
 #define WEAVE_MD1_MEM_H_
 
+#include "bridge.h"
 #include "mem_ctrls.h"
 #include "timing_event.h"
 #include "zsim.h"
@@ -54,10 +55,11 @@ class WeaveMD1Memory : public MD1Memory {
         const uint32_t boundLatency;
         const uint32_t domain;
         uint32_t preDelay, postDelay;
+        Bridge* bridge;
 
     public:
-        WeaveMD1Memory(uint32_t lineSize, uint32_t megacyclesPerSecond, uint32_t megabytesPerSecond, uint32_t _zeroLoadLatency, uint32_t _boundLatency, uint32_t _domain, g_string& _name) :
-            MD1Memory(lineSize, megacyclesPerSecond, megabytesPerSecond, _zeroLoadLatency, _name), zeroLoadLatency(_zeroLoadLatency), boundLatency(_boundLatency), domain(_domain)
+        WeaveMD1Memory(uint32_t lineSize, uint32_t megacyclesPerSecond, uint32_t megabytesPerSecond, uint32_t _zeroLoadLatency, uint32_t _boundLatency, uint32_t _domain, g_string& _name, Bridge* _bridge) :
+            MD1Memory(lineSize, megacyclesPerSecond, megabytesPerSecond, _zeroLoadLatency, _name, _bridge), zeroLoadLatency(_zeroLoadLatency), boundLatency(_boundLatency), domain(_domain)
         {
             preDelay = zeroLoadLatency/2;
             postDelay = zeroLoadLatency - preDelay;
@@ -89,10 +91,11 @@ class WeaveSimpleMemory : public SimpleMemory {
         uint32_t zeroLoadLatency;
         uint32_t domain;
         uint32_t preDelay, postDelay;
+        Bridge* bridge;
 
     public:
-        WeaveSimpleMemory(uint32_t _latency, uint32_t _zeroLoadLatency, uint32_t _domain, g_string& _name) :
-            SimpleMemory(_latency, _name), zeroLoadLatency(_zeroLoadLatency), domain(_domain)
+        WeaveSimpleMemory(uint32_t _latency, uint32_t _zeroLoadLatency, uint32_t _domain, g_string& _name, Bridge* _bridge) :
+            SimpleMemory(_latency, _name, _bridge), zeroLoadLatency(_zeroLoadLatency), domain(_domain)
         {
             assert(_latency >= _zeroLoadLatency);
             preDelay = zeroLoadLatency/2;

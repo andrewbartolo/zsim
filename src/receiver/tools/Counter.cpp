@@ -37,7 +37,8 @@ Counter::access(const RequestPacket& req, ResponsePacket& res)
             break;
     }
 
-    res.cycle = req.cycle;
+    res.latency = 0;
+    res.do_forward = false;
 }
 
 void
