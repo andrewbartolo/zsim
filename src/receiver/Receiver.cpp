@@ -7,6 +7,7 @@
 #include "Receiver.h"
 #include "tools/Tool.h"
 #include "tools/Counter.h"
+#include "tools/BufferTool.h"
 
 // maximum struct sockaddr_un path length
 #define SUN_PATH_MAX 108
@@ -58,6 +59,9 @@ Receiver::init(const char* const zsim_output_dir, const char* const tool_name,
     // construct the appropriate form of tool
     if      (std::string(tool_name) == "Counter") {
         tool = new Counter(zsim_output_dir, tool_name, tool_config_path);
+    }
+    else if (std::string(tool_name) == "Buffer") {
+        tool = new BufferTool(zsim_output_dir, tool_name, tool_config_path);
     }
     else assert(false);
 }

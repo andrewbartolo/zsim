@@ -5,16 +5,12 @@
 
 
 Counter::Counter(const std::string& zsim_output_dir,
-        const std::string& tool_name, const std::string& tool_config_path) :
-        Tool(zsim_output_dir, tool_name, tool_config_path)
+        const std::string& name, const std::string& config_path) :
+        Tool(zsim_output_dir, name, config_path)
 {
-
-}
-
-void
-Counter::specific_parse_config_file()
-{
-
+    for (auto& kv : config) {
+        std::cout << "Key: " << kv.first << "; Val: " << kv.second << std::endl;
+    }
 }
 
 void

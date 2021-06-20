@@ -1,17 +1,23 @@
+#include <assert.h>
+
+#include <iostream>
+#include <fstream>
+#include <sstream>
+
 #include "Tool.h"
 
 
 /*
  * Ctor.
  */
-Tool::Tool(const std::string& zsim_output_dir, const std::string& tool_name,
-        const std::string& tool_config_path) : zsim_output_dir(zsim_output_dir),
-        tool_name(tool_name), tool_config_path(tool_config_path)
+Tool::Tool(const std::string& zsim_output_dir, const std::string& name,
+        const std::string& config_path) : zsim_output_dir(zsim_output_dir),
+        name(name), config_path(config_path)
 {
-    stats_text_file_path = zsim_output_dir + "/" + tool_name + "-stats.txt";
-    stats_binary_file_path = zsim_output_dir + "/" + tool_name + "-stats.bin";
+    stats_text_file_path = zsim_output_dir + "/" + name + "-stats.txt";
+    stats_binary_file_path = zsim_output_dir + "/" + name + "-stats.bin";
 
-    generic_parse_config_file();
+    parse_config_file();
 }
 
 /*
@@ -19,7 +25,18 @@ Tool::Tool(const std::string& zsim_output_dir, const std::string& tool_name,
  * themselves then take (and typecast) what they need out of this dictionary.
  */
 void
-Tool::generic_parse_config_file()
+Tool::parse_config_file()
 {
-    // TODO: read line-by-line
+    std::ifstream ifs(config_path);
+    assert(ifs);
+
+    std::string line;
+    while (std::getline(ifs, line)) {
+        // tokenize
+        auto iss = std::istringstream(line);
+        std::string k, v;
+        iss >> k;
+        iss >> v;
+        config[k] = v;
+    }
 }

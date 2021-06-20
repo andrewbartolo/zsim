@@ -8,7 +8,9 @@ zsimEnv = env
 
 # list of source files
 commonSrcs = ["Receiver.cpp", "tools/Tool.cpp"]
-toolSrcs = ["tools/Counter.cpp"]
+toolSrcs = ["tools/Counter.cpp", "tools/BufferTool.cpp",
+        "tools/basicbuffer/Buffer.cpp", "tools/basicbuffer/Bank.cpp",
+        "tools/basicbuffer/Set.cpp"]
 srcs = commonSrcs + toolSrcs
 
 # build receiver with our own env, since we don't need ABI compatibility, etc.

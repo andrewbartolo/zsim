@@ -19,7 +19,6 @@ class Counter : public Tool {
         Counter& operator=(Counter&& c) = delete;
 
         // Tool virtual methods implemented here
-        void specific_parse_config_file();
         void access(const RequestPacket& req, ResponsePacket& res);
         void dump_stats_text();
         void dump_stats_binary();

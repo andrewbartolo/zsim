@@ -55,7 +55,7 @@ Bridge::launch_receiver(const std::string zsim_output_dir,
     // first, validate tool type:
 
     const char* const valid_tool_types[] = {
-        "Counter",
+        "Counter", "Buffer",
     };
     size_t n_valid_tool_types =
             sizeof(valid_tool_types) / sizeof(valid_tool_types[0]);
