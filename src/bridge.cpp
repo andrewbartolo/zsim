@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sys/un.h>
 #include <unistd.h>
+#include <wait.h>
 
 #include <random>
 
@@ -134,6 +135,11 @@ Bridge::terminate_receiver()
     rp.status = BRIDGE_PACKET_STATUS_TERM;
     send_packet(receiver_sock_fd_s, &receiver_sock_addr_s,
             receiver_sock_addr_len_s, &rp);
+
+    // wait until the receiver process actually exits
+    if (waitpid(receiver_pid_s, nullptr, 0) != receiver_pid_s) {
+        panic("could not waitpid() for receiver process to terminate");
+    }
 }
 
 /*
