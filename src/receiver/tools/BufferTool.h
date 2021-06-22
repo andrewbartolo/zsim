@@ -26,5 +26,8 @@ class BufferTool : public Tool {
         void dump_stats_binary();
 
     private:
+        // property of BufferTool and not Buffer itself
+        uint64_t access_latency;
+
         std::unique_ptr<Buffer> buffer;
 };

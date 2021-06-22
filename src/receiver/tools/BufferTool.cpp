@@ -35,6 +35,8 @@ BufferTool::BufferTool(const std::string& zsim_output_dir,
         n_lines = std::stoul(config.at("N_LINES"));
         n_banks = std::stoul(config.at("N_BANKS"));
         n_ways = std::stoul(config.at("N_WAYS"));
+
+        access_latency = std::stoul(config.at("ACCESS_LATENCY"));
     }
     catch (...) {
         std::cerr << "ERROR: could not parse tool config file" << std::endl;
@@ -75,7 +77,7 @@ BufferTool::access(const RequestPacket& req, ResponsePacket& res)
 
     buffer->access(line_addr, type, &was_hit);
 
-    res.latency = 1;
+    res.latency = access_latency;
     res.do_forward = !was_hit;
 }
 
