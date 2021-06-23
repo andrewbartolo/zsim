@@ -32,9 +32,10 @@ main(int argc, char* argv[])
     char* const tool_name = argv[2];
     char* const tool_config_path = argv[3];
 
-    printf("initiating receiver:\n");
-    printf("\ttool: %s\n", tool_name);
-    printf("\ttool config: %s\n", tool_config_path);
+    fprintf(stderr, "initiating receiver:\n");
+    fprintf(stderr, "\ttool: %s\n", tool_name);
+    fprintf(stderr, "\ttool config: %s\n", tool_config_path);
+    fflush(stderr);
 
     Receiver::init(zsim_output_dir, tool_name, tool_config_path);
     Receiver::run();
