@@ -62,8 +62,10 @@ BufferTool::access(const RequestPacket& req, ResponsePacket& res)
             type = BUFFER_ACCESS_TYPE_RD;
             break;
         case BRIDGE_PACKET_ACCESS_TYPE_PUTS:
-            type = BUFFER_ACCESS_TYPE_WR;
-            break;
+            // clean writebacks don't incur any cost
+            res.latency = 0;
+            res.do_forward = false;
+            return;
         case BRIDGE_PACKET_ACCESS_TYPE_PUTX:
             type = BUFFER_ACCESS_TYPE_WR;
             break;
