@@ -510,7 +510,7 @@ static void InitSystem(Config& config) {
     }
 
     if (memControllers > 1) {
-        bool splitAddrs = config.get<bool>("sys.mem.splitAddrs", true);
+        bool splitAddrs = config.get<bool>("sys.mem.splitAddrs", false);
         if (splitAddrs) {
             MemObject* splitter = new SplitAddrMemory(mems, "mem-splitter");
             mems.resize(1);
