@@ -31,6 +31,7 @@
 #include <string>
 #include <sys/time.h>
 #include <vector>
+#include "bridge.h"
 #include "cache.h"
 #include "cache_arrays.h"
 #include "config.h"
@@ -366,6 +367,13 @@ MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t fre
     } else {
         panic("Invalid memory controller type %s", type.c_str());
     }
+
+    // if we specified the bridge interposer, construct it here.
+    if (config.exists("sys.bridge")) {
+        g_string bridge_type = config.get<const char*>("sys.bridge.type");
+        mem = new Bridge(lineSize, name, bridge_type, mem);
+    }
+
     return mem;
 }
 
