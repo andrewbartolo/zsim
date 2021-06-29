@@ -39,10 +39,10 @@ class BufferController : public MemObject {
         BufferController(uint32_t line_size, uint32_t n_lines, uint32_t n_ways,
                 uint32_t n_banks, g_string& name, MemObject* mem);
         // NOTE: copy + move ctors + assignment operators *should be* deleted
-        BufferController(const BufferController& b) = delete;
-        BufferController& operator=(const BufferController& b) = delete;
-        BufferController(BufferController&& b) = delete;
-        BufferController& operator=(BufferController&& b) = delete;
+        BufferController(const BufferController& bc) = delete;
+        BufferController& operator=(const BufferController& bc) = delete;
+        BufferController(BufferController&& bc) = delete;
+        BufferController& operator=(BufferController&& bc) = delete;
         ~BufferController();
 
 

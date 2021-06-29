@@ -43,6 +43,7 @@
 #include "ddr_mem.h"
 #include "debug_zsim.h"
 #include "dramsim_mem_ctrl.h"
+#include "endurer.h"
 #include "event_queue.h"
 #include "filter_cache.h"
 #include "galloc.h"
@@ -370,8 +371,14 @@ MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t fre
 
     /*
      * NOTE: below, the order of the cascaded tools (Buffer, Endurer, etc.)
-     * matters -- they should be in order that they occur in the actual arch.
+     * matters -- in the code, they should be in the *OPPOSITE* order that they
+     * occur in the actual arch.
      */
+
+    if (config.exists("sys.endurer")) {
+        uint32_t page_size = config.get<uint32_t>("sys.endurer.pageSize");
+        mem = new EndurerController(lineSize, page_size, name, mem);
+    }
 
     // if we specified a Buffer, construct the BufferController interposer here.
     if (config.exists("sys.buffer")) {
@@ -383,9 +390,6 @@ MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t fre
         mem = new BufferController(lineSize, n_lines, n_ways, n_banks, name, mem);
     }
 
-    if (config.exists("sys.endurer")) {
-        // TODO
-    }
 
     return mem;
 }

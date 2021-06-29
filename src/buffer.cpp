@@ -22,7 +22,7 @@ BufferController::~BufferController()
 
 /*
  * For now, just forward to the underlying mem. object.
- * TODO: wire up buffer
+ * TODO: wire up Buffer
  */
 uint64_t
 BufferController::access(MemReq& req)
