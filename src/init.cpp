@@ -31,7 +31,7 @@
 #include <string>
 #include <sys/time.h>
 #include <vector>
-#include "bridge.h"
+#include "buffer.h"
 #include "cache.h"
 #include "cache_arrays.h"
 #include "config.h"
@@ -368,10 +368,23 @@ MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t fre
         panic("Invalid memory controller type %s", type.c_str());
     }
 
-    // if we specified the bridge interposer, construct it here.
-    if (config.exists("sys.bridge")) {
-        g_string bridge_type = config.get<const char*>("sys.bridge.type");
-        mem = new Bridge(lineSize, name, bridge_type, mem);
+    /*
+     * NOTE: below, the order of the cascaded tools (Buffer, Endurer, etc.)
+     * matters -- they should be in order that they occur in the actual arch.
+     */
+
+    // if we specified a Buffer, construct the BufferController interposer here.
+    if (config.exists("sys.buffer")) {
+        g_string allocation_policy = config.get<const char*>("sys.buffer.allocationPolicy");
+        g_string eviction_policy = config.get<const char*>("sys.buffer.evictionPolicy");
+        uint32_t n_lines = config.get<uint32_t>("sys.buffer.nLines");
+        uint32_t n_ways = config.get<uint32_t>("sys.buffer.nWays");
+        uint32_t n_banks = config.get<uint32_t>("sys.buffer.nBanks");
+        mem = new BufferController(lineSize, n_lines, n_ways, n_banks, name, mem);
+    }
+
+    if (config.exists("sys.endurer")) {
+        // TODO
     }
 
     return mem;

@@ -1,11 +1,9 @@
 /*
- * This class implements the "bridge" between the existing zsim codebase, and
- * the separate facilities for simulating memory-related functionality, such as
- * a write buffer, multi-node NUMA, etc.
- *
- * In essence, instead of attaching a memory controller to the last-level cache,
- * we instead attach the bridge interface to the last-level cache. Then, memory
- * accesses are sent over the bridge to the appropriate tool.
+ * This class implements a (write) buffer. The BufferController objects attach
+ * to the existing memory controller (in init.cpp, in BuildMemoryController()),
+ * and then all accesses are channeled through the Buffer objects. In this way,
+ * BufferController (and Buffer) serve as an interposer that comes between the
+ * LLC and the memory controller.
  *
  * NOTE: the first pass at a bridge implementation used separate processes
  * communicating over UNIX domain sockets. However, the one-packet-per-
@@ -25,8 +23,8 @@
  * 4. have support for cluster-level simulation, again, as a novel direction.
  */
 
-#ifndef BRIDGE_H_
-#define BRIDGE_H_
+#ifndef BUFFER_H_
+#define BUFFER_H_
 
 #include <stdint.h>
 #include <unistd.h>
@@ -36,16 +34,16 @@
 #include "stats.h"
 
 
-class Bridge : public MemObject {
+class BufferController : public MemObject {
     public:
-        Bridge(uint32_t line_size, g_string& name, g_string& type,
-                MemObject* mem);
+        BufferController(uint32_t line_size, uint32_t n_lines, uint32_t n_ways,
+                uint32_t n_banks, g_string& name, MemObject* mem);
         // NOTE: copy + move ctors + assignment operators *should be* deleted
-        Bridge(const Bridge& b) = delete;
-        Bridge& operator=(const Bridge& b) = delete;
-        Bridge(Bridge&& b) = delete;
-        Bridge& operator=(Bridge&& b) = delete;
-        ~Bridge();
+        BufferController(const BufferController& b) = delete;
+        BufferController& operator=(const BufferController& b) = delete;
+        BufferController(BufferController&& b) = delete;
+        BufferController& operator=(BufferController&& b) = delete;
+        ~BufferController();
 
 
         void initStats(AggregateStat* parentStat);
@@ -57,11 +55,13 @@ class Bridge : public MemObject {
 
     private:
         uint32_t line_size;
+        uint32_t n_lines;
+        uint32_t n_ways;
+        uint32_t n_banks;
         g_string name;
-        g_string type;
 
-        MemObject* mem;
+        MemObject* mem = nullptr;
 };
 
 
-#endif  // BRIDGE_H_
+#endif  // BUFFER_H_
