@@ -9,7 +9,7 @@ BufferController::BufferController(uint32_t line_size, uint32_t n_lines,
     line_size(line_size), n_lines(n_lines), n_ways(n_ways), n_banks(n_banks),
     name(name), mem(mem)
 {
-    printf("BufferController constructed\n");
+    // TODO
 }
 
 /*
