@@ -1,5 +1,7 @@
 #include "bithacks.h"
 #include "endurer.h"
+#include "record_writer.h"
+#include "zsim.h"
 
 
 /*
@@ -20,6 +22,12 @@ Endurer::Endurer(uint32_t line_size, uint32_t page_size) : line_size(line_size),
 
     line_size_log2 = ilog2(line_size);
     page_size_log2 = ilog2(page_size);
+
+    // register the RecordWriter so that records can be written upon sim. end
+    auto bound_write_record =
+            std::bind(&Endurer::write_record, this, std::placeholders::_1);
+    RecordWriter* rw = new RecordWriter("endurer", bound_write_record);
+    zinfo->recordWriters->push_back(rw);
 }
 
 Endurer::~Endurer()
@@ -36,10 +44,14 @@ Endurer::line_addr_to_page_addr(Address line_addr)
 void
 Endurer::access(MemReq& req)
 {
-    futex_lock(&lock);
+    // if it's not a PUTX (dirty writeback), we don't care about it
+    if (req.type != PUTX) return;
 
     Address line_addr = req.lineAddr;
     Address page_addr = line_addr_to_page_addr(line_addr);
+
+
+    futex_lock(&lock);
 
     auto it = page_write_ctr.find(page_addr);
     if (it == page_write_ctr.end()) {
@@ -50,6 +62,26 @@ Endurer::access(MemReq& req)
 
     futex_unlock(&lock);
 }
+
+// callback that is passed to RecordWriter to be called at sim. end
+void
+Endurer::write_record(std::ofstream& ofs)
+{
+    /*
+     * output file is of the format:
+     * <n_writes>
+     * <n_writes>
+     * ...
+     *
+     * in the order that the page was first seen in the program's execution.
+     */
+
+    for (Address a : page_order) {
+        auto& count = page_write_ctr.at(a);
+        ofs.write((char*) &count, sizeof(count));
+    }
+}
+
 
 
 /*

@@ -57,6 +57,7 @@
 #include "pin_cmd.h"
 #include "process_tree.h"
 #include "profile_stats.h"
+#include "record_writer.h"
 #include "scheduler.h"
 #include "stats.h"
 #include "trace_driver.h"
@@ -1116,6 +1117,7 @@ VOID SimEnd() {
         zinfo->trigger = 20000;
         for (StatsBackend* backend : *(zinfo->statsBackends)) backend->dump(false /*unbuffered, write out*/);
         for (AccessTraceWriter* t : *(zinfo->traceWriters)) t->dump(false);  // flushes trace writer
+        for (RecordWriter* r : *(zinfo->recordWriters)) r->dump(zinfo->outputDir);
 
         if (zinfo->sched) zinfo->sched->notifyTermination();
     }

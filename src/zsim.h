@@ -47,6 +47,7 @@ class PinCmd;
 class PortVirtualizer;
 class VectorCounter;
 class AccessTraceWriter;
+class RecordWriter;
 class TraceDriver;
 template <typename T> class g_vector;
 
@@ -177,6 +178,9 @@ struct GlobSimInfo {
 
     // Trace writers (stored globally because they need to be deleted when the simulation ends)
     g_vector<AccessTraceWriter*>* traceWriters;
+
+    // Record writers
+    g_vector<RecordWriter*>* recordWriters;
 
     // Trace-driven simulation (no cores)
     bool traceDriven;

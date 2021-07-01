@@ -11,6 +11,9 @@
 #include <stdint.h>
 #include <unistd.h>
 
+#include <fstream>
+#include <functional>
+
 #include "g_std/g_string.h"
 #include "g_std/g_unordered_map.h"
 #include "g_std/g_vector.h"
@@ -30,6 +33,8 @@ class Endurer : public GlobAlloc {
 
         // TODO add base latency
         void access(MemReq& req);
+
+        void write_record(std::ofstream& ofs);
 
     private:
         inline Address line_addr_to_page_addr(Address line_addr);

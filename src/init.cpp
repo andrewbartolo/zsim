@@ -931,6 +931,8 @@ void SimInit(const char* configFile, const char* outputDir, uint32_t shmid) {
 
     zinfo->traceWriters = new g_vector<AccessTraceWriter*>();
 
+    zinfo->recordWriters = new g_vector<RecordWriter*>();
+
     // Global simulation values
     zinfo->numPhases = 0;
 
