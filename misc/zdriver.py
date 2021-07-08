@@ -22,8 +22,7 @@ argparser.add_argument('-t', '--n_threads', type=int, required=True,
 argparser.add_argument('-c', '--config', type=str, required=True,
         help='zsim .cfg config file')
 argparser.add_argument('-s', '--toggle_str', type=str, required=False,
-        default='ZSIM_FF_TOGGLE',
-        help='The string to search for to toggle fast-forward')
+        default='', help='The string to search for to toggle fast-forward')
 args = argparser.parse_args(sys.argv[1:])
 
 
@@ -68,6 +67,8 @@ def main():
     set_environment_variables()
     set_signal_forwarding()
 
+    is_toggle_mode = args.toggle_str != ''
+
     # get a pgid with os.setsid
     p = subprocess.Popen(gen_zsim_cmd(), stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT, preexec_fn=os.setsid, shell=True)
@@ -78,13 +79,14 @@ def main():
         sys.stdout.buffer.write(line)
         sys.stdout.flush()
 
-        if shmid == None:
-            shmid = find_shmid(line)
+        if is_toggle_mode:
+            if shmid == None:
+                shmid = find_shmid(line)
 
-        should_toggle = check_line_for_marker(line)
-        if (should_toggle):
-            assert shmid != -1
-            do_toggle(shmid, 0)
+            should_toggle = check_line_for_marker(line)
+            if (should_toggle):
+                assert shmid != -1
+                do_toggle(shmid, 0)
 
 
 if __name__ == '__main__':
