@@ -5,8 +5,8 @@
  * a memory lifetime can be established.
  */
 
-#ifndef ENDURER_H_
-#define ENDURER_H_
+#ifndef HISTOGRAM_H_
+#define HISTOGRAM_H_
 
 #include <stdint.h>
 #include <unistd.h>
@@ -21,14 +21,14 @@
 #include "memory_hierarchy.h"
 #include "stats.h"
 
-class Endurer : public GlobAlloc {
+class Histogram : public GlobAlloc {
     public:
-        Endurer(uint32_t line_size, uint32_t page_size);
-        Endurer(const Endurer& e) = delete;
-        Endurer& operator=(const Endurer& e) = delete;
-        Endurer(Endurer&& e) = delete;
-        Endurer& operator=(Endurer&& e) = delete;
-        ~Endurer();
+        Histogram(uint32_t line_size, uint32_t page_size);
+        Histogram(const Histogram& e) = delete;
+        Histogram& operator=(const Histogram& e) = delete;
+        Histogram(Histogram&& e) = delete;
+        Histogram& operator=(Histogram&& e) = delete;
+        ~Histogram();
 
 
         // TODO add base latency
@@ -53,16 +53,16 @@ class Endurer : public GlobAlloc {
 };
 
 
-class EndurerController : public MemObject {
+class HistogramController : public MemObject {
     public:
-        EndurerController(uint32_t line_size, uint32_t page_size, g_string&
+        HistogramController(uint32_t line_size, uint32_t page_size, g_string&
                 name, MemObject* mem);
         // NOTE: copy + move ctors + assignment operators *should be* deleted
-        EndurerController(const EndurerController& ec) = delete;
-        EndurerController& operator=(const EndurerController& ec) = delete;
-        EndurerController(EndurerController&& ec) = delete;
-        EndurerController& operator=(EndurerController&& ec) = delete;
-        ~EndurerController();
+        HistogramController(const HistogramController& ec) = delete;
+        HistogramController& operator=(const HistogramController& ec) = delete;
+        HistogramController(HistogramController&& ec) = delete;
+        HistogramController& operator=(HistogramController&& ec) = delete;
+        ~HistogramController();
 
         void initStats(AggregateStat* parentStat);
         uint64_t access(MemReq& req);
@@ -79,8 +79,8 @@ class EndurerController : public MemObject {
 
     // static fields + methods
     private:
-        static Endurer* endu;
+        static Histogram* histo;
 };
 
 
-#endif  // ENDURER_H_
+#endif  // HISTOGRAM_H_

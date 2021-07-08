@@ -1,5 +1,5 @@
 #include "bithacks.h"
-#include "endurer.h"
+#include "histogram.h"
 #include "record_writer.h"
 #include "zsim.h"
 
@@ -7,11 +7,11 @@
 /*
  * Static variables.
  */
-Endurer* EndurerController::endu = nullptr;
+Histogram* HistogramController::histo = nullptr;
 
 
 
-Endurer::Endurer(uint32_t line_size, uint32_t page_size) : line_size(line_size),
+Histogram::Histogram(uint32_t line_size, uint32_t page_size) : line_size(line_size),
         page_size(page_size)
 {
     futex_init(&lock);
@@ -25,24 +25,24 @@ Endurer::Endurer(uint32_t line_size, uint32_t page_size) : line_size(line_size),
 
     // register the RecordWriter so that records can be written upon sim. end
     auto bound_write_record =
-            std::bind(&Endurer::write_record, this, std::placeholders::_1);
-    RecordWriter* rw = new RecordWriter("endurer", bound_write_record);
+            std::bind(&Histogram::write_record, this, std::placeholders::_1);
+    RecordWriter* rw = new RecordWriter("histogram", bound_write_record);
     zinfo->recordWriters->push_back(rw);
 }
 
-Endurer::~Endurer()
+Histogram::~Histogram()
 {
 }
 
 inline Address
-Endurer::line_addr_to_page_addr(Address line_addr)
+Histogram::line_addr_to_page_addr(Address line_addr)
 {
     return line_addr >> (page_size_log2 - line_size_log2);
 }
 
 // TODO factor in base latency
 void
-Endurer::access(MemReq& req)
+Histogram::access(MemReq& req)
 {
     // if it's not a PUTX (dirty writeback), we don't care about it
     if (req.type != PUTX) return;
@@ -65,7 +65,7 @@ Endurer::access(MemReq& req)
 
 // callback that is passed to RecordWriter to be called at sim. end
 void
-Endurer::write_record(std::ofstream& ofs)
+Histogram::write_record(std::ofstream& ofs)
 {
     /*
      * output file is of the format:
@@ -86,34 +86,34 @@ Endurer::write_record(std::ofstream& ofs)
 
 /*
  * Ctor and dtor.
- * NOTE: EndurerControllers are constructed serially, so we don't need to lock
- * around creating the backing Endurer object.
+ * NOTE: HistogramControllers are constructed serially, so we don't need to lock
+ * around creating the backing Histogram object.
  */
-EndurerController::EndurerController(uint32_t line_size, uint32_t page_size,
+HistogramController::HistogramController(uint32_t line_size, uint32_t page_size,
         g_string& name, MemObject* mem) : line_size(line_size),
         page_size(page_size), name(name), mem(mem)
 {
 
-    if (endu == nullptr) endu = new Endurer(line_size, page_size);
+    if (histo == nullptr) histo = new Histogram(line_size, page_size);
 }
 
 /*
  * The stock zsim code never cleans up its MemObjects (of which
- * EndurerController is a subtype), so this dtor is never called.
+ * HistogramController is a subtype), so this dtor is never called.
  */
-EndurerController::~EndurerController()
+HistogramController::~HistogramController()
 {
 }
 
 /*
  * For now, just forward to the underlying mem. object.
- * TODO: wire up Endurer
+ * TODO: wire up Histogram
  */
 uint64_t
-EndurerController::access(MemReq& req)
+HistogramController::access(MemReq& req)
 {
     // note it...
-    endu->access(req);
+    histo->access(req);
 
     // ...and forward it
     return mem->access(req);
@@ -123,7 +123,7 @@ EndurerController::access(MemReq& req)
  * Forwards the initStats() method to the underlying mem. object.
  */
 void
-EndurerController::initStats(AggregateStat* parentStat)
+HistogramController::initStats(AggregateStat* parentStat)
 {
     mem->initStats(parentStat);
 }
