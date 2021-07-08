@@ -7,12 +7,12 @@
 /*
  * Static variables.
  */
-Histogram* HistogramController::histo = nullptr;
+Histogram* HistogramController::histogram = nullptr;
 
 
 
-Histogram::Histogram(uint32_t line_size, uint32_t page_size) : line_size(line_size),
-        page_size(page_size)
+Histogram::Histogram(uint32_t line_size, uint32_t page_size) :
+        line_size(line_size), page_size(page_size)
 {
     futex_init(&lock);
 
@@ -90,11 +90,10 @@ Histogram::write_record(std::ofstream& ofs)
  * around creating the backing Histogram object.
  */
 HistogramController::HistogramController(uint32_t line_size, uint32_t page_size,
-        g_string& name, MemObject* mem) : line_size(line_size),
-        page_size(page_size), name(name), mem(mem)
+        g_string& name, MemObject* mem) : name(name), line_size(line_size),
+        mem(mem)
 {
-
-    if (histo == nullptr) histo = new Histogram(line_size, page_size);
+    if (histogram == nullptr) histogram = new Histogram(line_size, page_size);
 }
 
 /*
@@ -112,8 +111,9 @@ HistogramController::~HistogramController()
 uint64_t
 HistogramController::access(MemReq& req)
 {
-    // note it...
-    histo->access(req);
+    // record it. NOTE: histogram always has zero access latency
+    // (we analytically apply latency later on)
+    histogram->access(req);
 
     // ...and forward it
     return mem->access(req);
@@ -125,5 +125,7 @@ HistogramController::access(MemReq& req)
 void
 HistogramController::initStats(AggregateStat* parentStat)
 {
+    // histogram has no zsim-style stats of its own, only a RecordWriter
+
     mem->initStats(parentStat);
 }

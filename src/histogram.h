@@ -30,8 +30,6 @@ class Histogram : public GlobAlloc {
         Histogram& operator=(Histogram&& e) = delete;
         ~Histogram();
 
-
-        // TODO add base latency
         void access(MemReq& req);
 
         void write_record(std::ofstream& ofs);
@@ -71,15 +69,14 @@ class HistogramController : public MemObject {
         uint32_t getLineSize() { return line_size; }
 
     private:
-        uint32_t line_size;
-        uint32_t page_size;
+        // name of the hooked MemObject (not the Histogram it links to)
         g_string name;
-
+        uint32_t line_size;
         MemObject* mem = nullptr;
 
     // static fields + methods
     private:
-        static Histogram* histo;
+        static Histogram* histogram;
 };
 
 

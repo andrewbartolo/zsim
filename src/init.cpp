@@ -384,10 +384,11 @@ MemObject* BuildMemoryController(Config& config, uint32_t lineSize, uint32_t fre
     if (config.exists("sys.buffer")) {
         g_string allocation_policy = config.get<const char*>("sys.buffer.allocationPolicy");
         g_string eviction_policy = config.get<const char*>("sys.buffer.evictionPolicy");
-        uint32_t n_lines = config.get<uint32_t>("sys.buffer.nLines");
+        uint32_t n_bytes = config.get<uint32_t>("sys.buffer.size");
         uint32_t n_ways = config.get<uint32_t>("sys.buffer.nWays");
         uint32_t n_banks = config.get<uint32_t>("sys.buffer.nBanks");
-        mem = new BufferController(lineSize, n_lines, n_ways, n_banks, name, mem);
+        uint32_t latency = config.get<uint32_t>("sys.buffer.latency");
+        mem = new BufferController(lineSize, allocation_policy, eviction_policy, n_bytes, n_ways, n_banks, latency, name, mem);
     }
 
 
