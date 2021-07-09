@@ -174,9 +174,9 @@ Set::access(Address line_addr, Buffer::access_type_t type)
         if (it != lru_map.end()) {
             // it was a hit
             if (type == Buffer::ACCESS_TYPE_RD)
-                    ret &= Buffer::EVENT_RD_HIT;
+                    ret |= Buffer::EVENT_RD_HIT;
             else if (type == Buffer::ACCESS_TYPE_WR)
-                    ret &= Buffer::EVENT_WR_HIT;
+                    ret |= Buffer::EVENT_WR_HIT;
 
             // reset the last-used time by removing and appending
             lru_list.erase(it->second);
@@ -186,9 +186,9 @@ Set::access(Address line_addr, Buffer::access_type_t type)
         else {
             // it was a miss
             if (type == Buffer::ACCESS_TYPE_RD)
-                    ret &= Buffer::EVENT_RD_MISS;
+                    ret |= Buffer::EVENT_RD_MISS;
             else if (type == Buffer::ACCESS_TYPE_WR)
-                    ret &= Buffer::EVENT_WR_MISS;
+                    ret |= Buffer::EVENT_WR_MISS;
 
             // based on our allocation policy, do we want to allocate or not?
             bool do_allocate = (type == Buffer::ACCESS_TYPE_WR) or
@@ -206,7 +206,7 @@ Set::access(Address line_addr, Buffer::access_type_t type)
                     auto new_it = lru_list.emplace(lru_list.end(), line_addr);
                     lru_map[line_addr] = new_it;
 
-                    ret &= Buffer::EVENT_EVICTION;
+                    ret |= Buffer::EVENT_EVICTION;
                 }
                 else {
                     // don't need to evict
@@ -226,16 +226,16 @@ Set::access(Address line_addr, Buffer::access_type_t type)
         if (it != rand_set.end()) {
             // it was a hit
             if (type == Buffer::ACCESS_TYPE_RD)
-                    ret &= Buffer::EVENT_RD_HIT;
+                    ret |= Buffer::EVENT_RD_HIT;
             else if (type == Buffer::ACCESS_TYPE_WR)
-                    ret &= Buffer::EVENT_WR_HIT;
+                    ret |= Buffer::EVENT_WR_HIT;
         }
         else {
             // it was a miss
             if (type == Buffer::ACCESS_TYPE_RD)
-                    ret &= Buffer::EVENT_RD_MISS;
+                    ret |= Buffer::EVENT_RD_MISS;
             else if (type == Buffer::ACCESS_TYPE_WR)
-                    ret &= Buffer::EVENT_WR_MISS;
+                    ret |= Buffer::EVENT_WR_MISS;
 
             // based on our allocation policy, do we want to allocate or not?
             bool do_allocate = (type == Buffer::ACCESS_TYPE_WR) or
@@ -252,7 +252,7 @@ Set::access(Address line_addr, Buffer::access_type_t type)
                     rand_set.erase(to_evict);
                     rand_set.emplace(line_addr);
 
-                    ret &= Buffer::EVENT_EVICTION;
+                    ret |= Buffer::EVENT_EVICTION;
                 }
                 else {
                     // append to the vector
