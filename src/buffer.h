@@ -59,9 +59,13 @@ class Buffer : public GlobAlloc {
         ~Buffer();
 
         void init_stats();
-        uint64_t access(MemReq& req);
+        uint64_t access(MemReq& req, bool& do_fwd);
         uint32_t fast_hash(uint64_t line_addr, uint64_t modulo);
 
+
+        // need this boilerplate to pick up special GlobAlloc de/allocators
+        using GlobAlloc::operator new;
+        using GlobAlloc::operator delete;
 
     private:
         typedef enum {
@@ -98,7 +102,7 @@ class Buffer : public GlobAlloc {
         uint32_t n_banks;
         uint32_t latency;
 
-        g_vector<Bank> banks;
+        g_vector<Bank*> banks;
 
         // statistics
         AggregateStat* stats;
@@ -115,30 +119,48 @@ class Buffer : public GlobAlloc {
         friend class Set;
 };
 
-class Bank {
+class Bank : GlobAlloc {
     public:
         Bank(uint32_t gid, Buffer::allocation_policy_t allocation_policy,
                 Buffer::eviction_policy_t eviction_policy, uint32_t
                 n_sets_per_bank, uint32_t n_ways);
+        // NOTE: copy + move ctors + assignment operators *should be* deleted
+        Bank(const Bank& b) = delete;
+        Bank& operator=(const Bank& b) = delete;
+        Bank(Bank&& b) = delete;
+        Bank& operator=(Bank&& b) = delete;
         ~Bank();
 
         Buffer::event_t access(Address line_addr, Buffer::access_type_t type);
+
+
+        using GlobAlloc::operator new;
+        using GlobAlloc::operator delete;
 
     private:
         uint32_t gid;
         uint32_t n_sets;
         uint32_t n_ways;
 
-        g_vector<Set> sets;
+        g_vector<Set*> sets;
 };
 
-class Set {
+class Set : GlobAlloc {
     public:
         Set(uint32_t gid, Buffer::allocation_policy_t allocation_policy,
                 Buffer::eviction_policy_t eviction_policy, uint32_t n_ways);
+        // NOTE: copy + move ctors + assignment operators *should be* deleted
+        Set(const Set& s) = delete;
+        Set& operator=(const Set& s) = delete;
+        Set(Set&& s) = delete;
+        Set& operator=(Set&& s) = delete;
         ~Set();
 
         Buffer::event_t access(Address line_addr, Buffer::access_type_t type);
+
+
+        using GlobAlloc::operator new;
+        using GlobAlloc::operator delete;
 
     private:
         uint32_t gid;

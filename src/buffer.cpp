@@ -45,15 +45,15 @@ Buffer::Buffer(uint32_t line_size, g_string& allocation_policy, g_string&
     // construct Banks
     for (uint32_t i = 0; i < n_banks; ++i) {
         uint32_t bank_gid = i;
-        // still invokes move constructor
-        banks.emplace_back(bank_gid, this->allocation_policy,
-                this->eviction_policy, n_sets_per_bank, n_ways);
+        banks.emplace_back(new Bank(bank_gid, this->allocation_policy,
+                this->eviction_policy, n_sets_per_bank, n_ways));
     }
 }
 
 Buffer::~Buffer()
 {
     delete stats;
+    for (auto& b : banks) delete b;
 }
 
 void
@@ -76,7 +76,7 @@ Buffer::init_stats()
 }
 
 uint64_t
-Buffer::access(MemReq& req)
+Buffer::access(MemReq& req, bool& do_fwd)
 {
     // translate some fields into their Buffer internal representations
     Address line_addr = req.lineAddr;
@@ -89,13 +89,28 @@ Buffer::access(MemReq& req)
     futex_lock(&lock);
 
     uint32_t bank_idx = fast_hash(line_addr, n_banks);
-    event_t res = banks[bank_idx].access(line_addr, type);
+    event_t res = banks[bank_idx]->access(line_addr, type);
 
-    if (res & EVENT_RD_HIT) n_read_hits.inc();
-    if (res & EVENT_WR_HIT) n_write_hits.inc();
-    if (res & EVENT_RD_MISS) n_read_misses.inc();
-    if (res & EVENT_WR_MISS) n_write_misses.inc();
-    if (res & EVENT_EVICTION) n_evictions.inc();
+    if (res & EVENT_RD_HIT) {
+        n_read_hits.inc();
+        do_fwd = false;
+    }
+    if (res & EVENT_WR_HIT) {
+        n_write_hits.inc();
+        do_fwd = false;
+    }
+    if (res & EVENT_RD_MISS) {
+        n_read_misses.inc();
+        do_fwd = true;
+    }
+    if (res & EVENT_WR_MISS) {
+        n_write_misses.inc();
+        do_fwd = true;
+    }
+    if (res & EVENT_EVICTION) {
+        n_evictions.inc();
+        // eviction implies miss
+    }
 
     futex_unlock(&lock);
 
@@ -122,13 +137,14 @@ Bank::Bank(uint32_t gid, Buffer::allocation_policy_t allocation_policy,
     for (uint32_t i = 0; i < n_sets; ++i) {
         uint32_t set_gid = gid * n_sets + i;
         // still invokes move constructor
-        sets.emplace_back(set_gid, allocation_policy, eviction_policy, n_ways);
+        sets.emplace_back(new Set(set_gid, allocation_policy, eviction_policy,
+                n_ways));
     }
-
 }
 
 Bank::~Bank()
 {
+    for (auto& s : sets) delete s;
 }
 
 Buffer::event_t
@@ -137,7 +153,7 @@ Bank::access(Address line_addr, Buffer::access_type_t type)
     // look up the correct Set within the Bank
     uint32_t set_idx = line_addr % n_sets;
 
-    return sets[set_idx].access(line_addr, type);
+    return sets[set_idx]->access(line_addr, type);
 }
 
 Set::Set(uint32_t gid, Buffer::allocation_policy_t allocation_policy,
@@ -147,11 +163,12 @@ Set::Set(uint32_t gid, Buffer::allocation_policy_t allocation_policy,
         rand_dist(0, n_ways - 1)
 {
     if (eviction_policy == Buffer::EVICTION_POLICY_LRU) {
-        // reserve some space in the vector
-        rand_vec.reserve(n_ways);
+
     }
     else if (eviction_policy == Buffer::EVICTION_POLICY_RANDOM) {
-        // RAII: already initialized in initializer list
+        // reserve some space in the vector
+        rand_vec.reserve(n_ways);
+        // RAII: PRNG and dist already initialized in initializer list
     }
     else { }
 
@@ -302,10 +319,32 @@ BufferController::~BufferController()
 uint64_t
 BufferController::access(MemReq& req)
 {
-    uint64_t buffer_latency = buffer->access(req);
-    uint64_t fwd_latency = mem->access(req);
+    bool do_fwd;
+    uint64_t buffer_latency = buffer->access(req, do_fwd /* out */);
 
-    return buffer_latency + fwd_latency;
+    if (do_fwd) {
+        return buffer_latency + mem->access(req);
+    }
+    else {
+        // if the request stops here, need to set some appropriate state on
+        // the MemReq (as an actual memory would) so that zsim doesn't get
+        // confused
+        switch (req.type) {
+            case PUTS:
+            case PUTX:
+                *req.state = I;
+                break;
+            case GETS:
+                *req.state = req.is(MemReq::NOEXCL)? S : E;
+                break;
+            case GETX:
+                *req.state = M;
+                break;
+
+            default: panic("!?");
+        }
+        return req.cycle + buffer_latency;
+    }
 }
 
 /*

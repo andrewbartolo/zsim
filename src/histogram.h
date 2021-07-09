@@ -34,6 +34,11 @@ class Histogram : public GlobAlloc {
 
         void write_record(std::ofstream& ofs);
 
+
+        // need this boilerplate to pick up special GlobAlloc de/allocators
+        using GlobAlloc::operator new;
+        using GlobAlloc::operator delete;
+
     private:
         inline Address line_addr_to_page_addr(Address line_addr);
 
